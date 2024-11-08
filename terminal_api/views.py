@@ -37,8 +37,9 @@ class GetPairsList(APIView):
         if not search_param:
             return Response("Search param is not defined", status=status.HTTP_400_BAD_REQUEST)
 
-        pairs = DexScreenerApi.search_for_pairs(search_param)
-        return pairs["pairs"]
+        pairs = DexScreenerApi.search_for_pairs(search_param)["pairs"]
+        pairs = filter(lambda pair: pair["chainId"] == "ton" and pair["dexId"] == "dedust", pairs)
+        return Response(list(pairs))
 
 
 class GetAddressInformation(APIView):

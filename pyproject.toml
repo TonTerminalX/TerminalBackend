@@ -17,6 +17,8 @@ pytoniq-core = "^0.1.39"
 asyncio = "^3.4.3"
 pytvm = "^0.0.14"
 base58 = "^2.1.1"
+psycopg2 = {version = "^2.9.10", platform = "win32"}
+psycopg2-binary = {version = "^2.9.10", platform = "linux"}
 
 
 [build-system]
