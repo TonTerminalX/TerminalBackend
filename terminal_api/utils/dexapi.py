@@ -37,4 +37,5 @@ class DexScreenerApi:
 
 if __name__ == "__main__":
     # print(DexScreenerApi.get_pair("eqdyr9q8svyibjnyuptk13zmyb_iry3qdffpfciscawxucwi"))
-    print(DexScreenerApi.search_for_pairs("DOGS")[0])
+    # print(DexScreenerApi.search_for_pairs("DOGS")[0])
+    print(DexScreenerApi.get_new_pairs())

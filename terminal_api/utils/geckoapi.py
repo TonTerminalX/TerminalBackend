@@ -10,6 +10,7 @@ import requests
 class GeckoTerminalApi:
     api_url = "https://api.geckoterminal.com/api/v2"
     get_ohlcv_data_endpoint = "/networks/{network}/pools/{pool}/ohlcv/day"
+    get_trending_pairs_endpoint = "/networks/{network}/trending_pools?include=base_token%2Cquote_token%2Cdex&page=1"
 
     headers = {
         "Accept": "application/json;version=20230302"
@@ -21,6 +22,13 @@ class GeckoTerminalApi:
         response = requests.get(cls.api_url + formater_endpoint, headers=cls.headers, timeout=(10, 10))
         response.raise_for_status()
         return response.json()["data"]["attributes"]["ohlcv_list"]
+
+    @classmethod
+    def get_trending_pairs(cls):
+        endpoint = cls.api_url + cls.get_trending_pairs_endpoint.format(network="ton")
+        response = requests.get(endpoint, headers=cls.headers, timeout=(10, 10))
+        response.raise_for_status()
+        return response.json()["data"]
 
 
 if __name__ == "__main__":

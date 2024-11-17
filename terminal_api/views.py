@@ -147,9 +147,9 @@ class GetPairsChart(APIView):
         return Response(result)
 
 
-class GetNewPairs(APIView):
+class GetTrendingPairs(APIView):
     def get(self, request):
-        pairs = DexScreenerApi.get_new_pairs()
+        pairs = GeckoTerminalApi.get_trending_pairs()
         return Response(pairs)
 
 
