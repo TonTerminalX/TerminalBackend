@@ -1,4 +1,4 @@
-from django.core.cache import cache
+from asgiref.sync import async_to_sync
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
@@ -8,36 +8,66 @@ from rest_framework.generics import ListAPIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from core.authenticate import CookieJWTAuthentication
 from terminal_api.models import UserWallets, User, Position
-from terminal_api.serializers import RegisterOrLoginUserSerializer, PositionSerializer
-from pytoniq_core.crypto.signature import verify_sign
+from terminal_api.serializers import RegisterOrLoginUserSerializer, PositionSerializer, GetUserSerializer, \
+    PairSerializer
 
 from terminal_api.utils.dexapi import DexScreenerApi
+from terminal_api.utils.geckoapi import GeckoTerminalApi
 from terminal_api.utils.tonapi import TonCenterApi
 from terminal_api.utils.wallet import WalletUtils
 
 
 class RegisterUserView(APIView):
-    async def post(self, request):
+    def post(self, request):
         body = request.data
         serializer = RegisterOrLoginUserSerializer(data=body)
         serializer.is_valid(raise_exception=True)
 
-        sign, address, message = serializer.signature, serializer.address, serializer.message
+        data = serializer.data
+        sign, address, message = data["signature"], data["address"], data["message"]
         public_key = WalletUtils.get_public_key_bytes(address)
-        is_verified_signature = verify_sign(public_key, message, sign)
-        if not is_verified_signature:
-            return Response("Failed to verify signed message signature.", status=status.HTTP_400_BAD_REQUEST)
+
+        # is_verified_signature = WalletUtils.verify_sign(public_key, message, sign)
+        # if not is_verified_signature:
+        #     return Response({"detail": "Failed to verify signed message signature."}, status=status.HTTP_403_FORBIDDEN)
+
+        # is_exists_wallet = User.objects.get(id=request.user.id).exists()
+        # if is_exists_wallet:
+        #     return Response({"detail": "Already registered"}, status=status.HTTP_409_CONFLICT)
 
         # mnemo, new_wallet = await WalletUtils.generate_wallet()
-        _, new_address, new_private_key, new_public_key, new_mnemonic = WalletUtils.generate_wallet()
-        UserWallets(address=new_address, private_key=new_private_key, mnemonic=new_mnemonic, public_key=new_public_key)
 
-        return Response({"address": new_address, "mnemonic": new_mnemonic, "public_key": new_public_key})
+        is_user_exists = User.objects.filter(address=address).exists()
+        if is_user_exists:
+            return Response({"detail": "Already registered"}, status=status.HTTP_409_CONFLICT)
+
+        _, new_address, new_private_key, new_public_key, new_mnemonic = async_to_sync(WalletUtils.generate_wallet)()
+        new_wallet = UserWallets(address=new_address, private_key=new_private_key, mnemonic=new_mnemonic, public_key=new_public_key)
+        new_wallet.save()
+
+        user = User(address=address, wallet=new_wallet)
+        user.save()
+        refresh = RefreshToken.for_user(user)
+
+        response = Response({"address": new_address, "mnemonic": new_mnemonic, "public_key": new_public_key})
+        response.set_cookie(
+            key='access_token',
+            value=str(refresh.access_token),
+            httponly=True,
+            # secure=True,
+        )
+
+        return response
 
 
 class UserMeView(APIView):
-    pass
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(GetUserSerializer(request.user, context={'request': request}).data)
 
 
 class LoginUserView(APIView):
@@ -45,12 +75,13 @@ class LoginUserView(APIView):
         body = request.data
         serializer = RegisterOrLoginUserSerializer(data=body)
         serializer.is_valid(raise_exception=True)
+        data = serializer.data
 
-        sign, address, message = serializer.signature, serializer.address, serializer.message
+        sign, address, message = data["signature"], data["address"], data["message"]
         public_key = WalletUtils.get_public_key_bytes(address)
-        is_verified_signature = verify_sign(public_key, message, sign)
-        if not is_verified_signature:
-            return Response("Failed to verify signed message signature.", status=status.HTTP_400_BAD_REQUEST)
+        # is_verified_signature = verify_sign(public_key, message, sign)
+        # if not is_verified_signature:
+        #     return Response("Failed to verify signed message signature.", status=status.HTTP_400_BAD_REQUEST)
 
         user = User.objects.get(address=address)
         refresh = RefreshToken.for_user(user)
@@ -71,32 +102,49 @@ class GetPairsPagination(PageNumberPagination):
     max_page_size = 100
 
 
-class GetPairsList(ListAPIView):
+class GetSearchPairs(APIView):
     pagination_class = GetPairsPagination
+    serializer_class = PairSerializer
 
     def get_queryset(self):
-        search_param = self.request.query_params.get("search")
-        if not search_param:
-            return Response("Search param is not defined", status=status.HTTP_400_BAD_REQUEST)
+        search_param = self.request.query_params["search"]
 
-        pairs = DexScreenerApi.search_for_pairs(search_param)["pairs"]
+        pairs = DexScreenerApi.search_for_pairs(search_param)
         return [
             pair for pair in pairs
             if pair["chainId"] == "ton" and pair["dexId"] == "dedust"
         ]
 
-    def list(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         if not request.query_params.get("search"):
             return Response(
                 "Search param is not defined",
                 status=status.HTTP_400_BAD_REQUEST
             )
-        return super().list(request, *args, **kwargs)
+
+        pagination = self.pagination_class()
+        data = self.get_queryset()
+        paginated_queryset = pagination.paginate_queryset(data, request)
+
+        serializer = self.serializer_class(paginated_queryset, many=True)
+        return pagination.get_paginated_response(serializer.data)
 
 
 class GetPair(APIView):
-    def get(self, request, pair_address):
-        result = DexScreenerApi.get_pair(pair_address)
+    serializer_class = PairSerializer
+
+    def get(self, request, pool_address):
+        result = DexScreenerApi.get_pair(pool_address)
+        if not result:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        serialized = self.serializer_class(result)
+        return Response(serialized.data)
+
+
+class GetPairsChart(APIView):
+    def get(self, request, pool_address: str):
+        result = GeckoTerminalApi.get_ohlcv_data(pool_address)
         return Response(result)
 
 
@@ -110,8 +158,7 @@ class GetAddressInformation(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        address = request.user.wallet.address
+    def get(self, request, address):
         address_info = TonCenterApi.get_account_info(address)
         return Response(address_info)
 
@@ -128,7 +175,7 @@ class GetCreateUserOrders(APIView):
 
 
 class GetCreateUserPositions(APIView):
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):

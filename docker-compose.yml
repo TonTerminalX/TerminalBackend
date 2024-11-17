@@ -1,13 +1,13 @@
 services:
-  db:
-    image: postgres:14-alpine
-    container_name: db
+  terminal_db:
+    image: postgres:16-alpine
+    container_name: terminal_db
     command: postgres -c 'max_connections=15000'
     shm_size: 512m
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5433:5433"
     env_file:
       - .env
 
@@ -23,7 +23,7 @@ services:
     env_file:
       - .env
     depends_on:
-      - db
+      - terminal_db
 
 volumes:
   postgres_data:

@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 
 class UserWallets(models.Model):
@@ -10,11 +11,19 @@ class UserWallets(models.Model):
 
 
 class User(models.Model):
-    address = models.CharField(max_length=200)
+    REQUIRED_FIELDS = ["address"]
+    USERNAME_FIELD = "address"
+    is_anonymous = False
+    is_active = models.BooleanField(default=True)
+
+    address = models.CharField(max_length=200, unique=True)
     wallet = models.ForeignKey(UserWallets, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    @property
+    def is_authenticated(self):
+        return True
 
 class Position(models.Model):
     base_token = models.CharField(max_length=50)

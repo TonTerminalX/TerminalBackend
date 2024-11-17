@@ -87,7 +87,7 @@ DATABASES = {
         "USER": get_env_key("POSTGRES_USER"),
         "PASSWORD": get_env_key("POSTGRES_PASSWORD"),
         "HOST": get_env_key("POSTGRES_HOST"),
-        "PORT": get_env_key("POSTGRES_PORT"),
+        "PORT": get_env_key("PGPORT"),
     }
 }
 
@@ -151,6 +151,7 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_COOKIE': "access_token",
 }
 
 SPECTACULAR_SETTINGS = {
