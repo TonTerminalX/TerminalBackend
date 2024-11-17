@@ -28,7 +28,7 @@ class GeckoTerminalApi:
         endpoint = cls.api_url + cls.get_trending_pairs_endpoint.format(network="ton")
         response = requests.get(endpoint, headers=cls.headers, timeout=(10, 10))
         response.raise_for_status()
-        return response.json()["data"]
+        return response.json()
 
 
 if __name__ == "__main__":
