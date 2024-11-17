@@ -4,7 +4,6 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -41,7 +40,7 @@ class RegisterUserView(APIView):
 
         is_user_exists = User.objects.filter(address=address).exists()
         if is_user_exists:
-            return Response({"detail": "Already registered"}, status=status.HTTP_409_CONFLICT)
+            return Response({"detail": "already registered"}, status=status.HTTP_409_CONFLICT)
 
         _, new_address, new_private_key, new_public_key, new_mnemonic = async_to_sync(WalletUtils.generate_wallet)()
         new_wallet = UserWallets(address=new_address, private_key=new_private_key, mnemonic=new_mnemonic, public_key=new_public_key)
@@ -118,7 +117,7 @@ class GetSearchPairs(APIView):
     def get(self, request, *args, **kwargs):
         if not request.query_params.get("search"):
             return Response(
-                "Search param is not defined",
+                {"detail": "search param is not defined"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
