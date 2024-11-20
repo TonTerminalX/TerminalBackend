@@ -3,18 +3,27 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from mplfinance.original_flavor import candlestick_ohlc
 
-
 import requests
 
-def merge_pairs_info(response):
+
+def merge_pairs_info(response: dict):
     merged_info = dict()
     for pair in response['data']:
-        merged_info[pair['id']] = pair
+        merged_info[pair['relationships']['base_token']['data']['id']] = pair
+
+    included = {}
     for pair in response['included']:
-        if pair['id'] in merged_info:
-            merged_info[pair['id']].update(response['included'])
+        included[pair["id"]] = pair
+
+    for token_id in included.keys():
+        if token_id in merged_info:
+            merged_info[token_id]['attributes'] = {
+                **included[token_id]['attributes'],
+                **merged_info[token_id]['attributes']
+            }
 
     return list(merged_info.values())
+
 
 class GeckoTerminalApi:
     api_url = "https://api.geckoterminal.com/api/v2"
@@ -37,47 +46,60 @@ class GeckoTerminalApi:
         endpoint = cls.api_url + cls.get_trending_pairs_endpoint.format(network="ton")
         response = requests.get(endpoint, headers=cls.headers, timeout=(10, 10))
         response.raise_for_status()
-        return response.json()
+        return merge_pairs_info(response.json())
 
 
 if __name__ == "__main__":
     api = GeckoTerminalApi()
-    GeckoTerminalApi.get_trending_pairs()
-    chart = api.get_ohlcv_data("EQBCwe_IObXA4Mt3RbcHil2s4-v4YQS3wUDt1-DvZOceeMGO")
+    response = GeckoTerminalApi.get_trending_pairs()
+    print(response)
+    # chart = api.get_ohlcv_data("EQBCwe_IObXA4Mt3RbcHil2s4-v4YQS3wUDt1-DvZOceeMGO")
 
-    ohlc = [
-        [
-            mdates.date2num(datetime.datetime.utcfromtimestamp(item[0])),
-            item[1],  # Open
-            item[2],  # High
-            item[3],  # Low
-            item[4],  # Close
-        ]
-        for item in chart
-    ]
+    # ohlc = [
+    #     [
+    #         mdates.date2num(datetime.datetime.utcfromtimestamp(item[0])),
+    #         item[1],  # Open
+    #         item[2],  # High
+    #         item[3],  # Low
+    #         item[4],  # Close
+    #     ]
+    #     for item in chart
+    # ]
 
-    volume = [item[5] for item in chart]
-    dates = [mdates.date2num(datetime.datetime.utcfromtimestamp(item[0])) for item in chart]
-    colors = ['g' if ohlc[i][4] >= ohlc[i][1] else 'r' for i in range(len(ohlc))]  # Цвета для объёмов
-
-    # Построение графика
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6), gridspec_kw={'height_ratios': [3, 1]}, sharex=True)
-
-    # Свечной график
-    ax1.xaxis_date()
-    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-    candlestick_ohlc(ax1, ohlc, width=0.6, colorup='g', colordown='r', alpha=0.8)
-    ax1.set_title("Candlestick Chart with Volume")
-    ax1.set_ylabel("Price")
-    ax1.grid()
-
-    # Объём
-    ax2.bar(dates, volume, color=colors, width=0.6, alpha=0.8)
-    ax2.set_ylabel("Volume")
-    ax2.grid()
-
-    # Общая настройка
-    plt.xlabel("Date")
-    plt.tight_layout()
-    plt.show()
-
+    # chart = api.get_ohlcv_data("EQBCwe_IObXA4Mt3RbcHil2s4-v4YQS3wUDt1-DvZOceeMGO")
+    #
+    # ohlc = [
+    #     [
+    #         mdates.date2num(datetime.datetime.utcfromtimestamp(item[0])),
+    #         item[1],  # Open
+    #         item[2],  # High
+    #         item[3],  # Low
+    #         item[4],  # Close
+    #     ]
+    #     for item in chart
+    # ]
+    #
+    # volume = [item[5] for item in chart]
+    # dates = [mdates.date2num(datetime.datetime.utcfromtimestamp(item[0])) for item in chart]
+    # colors = ['g' if ohlc[i][4] >= ohlc[i][1] else 'r' for i in range(len(ohlc))]  # Цвета для объёмов
+    #
+    # # Построение графика
+    # fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6), gridspec_kw={'height_ratios': [3, 1]}, sharex=True)
+    #
+    # # Свечной график
+    # ax1.xaxis_date()
+    # ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+    # candlestick_ohlc(ax1, ohlc, width=0.6, colorup='g', colordown='r', alpha=0.8)
+    # ax1.set_title("Candlestick Chart with Volume")
+    # ax1.set_ylabel("Price")
+    # ax1.grid()
+    #
+    # # Объём
+    # ax2.bar(dates, volume, color=colors, width=0.6, alpha=0.8)
+    # ax2.set_ylabel("Volume")
+    # ax2.grid()
+    #
+    # # Общая настройка
+    # plt.xlabel("Date")
+    # plt.tight_layout()
+    # plt.show()
