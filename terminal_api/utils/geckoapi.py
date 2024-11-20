@@ -6,6 +6,15 @@ from mplfinance.original_flavor import candlestick_ohlc
 
 import requests
 
+def merge_pairs_info(response):
+    merged_info = dict()
+    for pair in response['data']:
+        merged_info[pair['id']] = pair
+    for pair in response['included']:
+        if pair['id'] in merged_info:
+            merged_info[pair['id']].update(response['included'])
+
+    return list(merged_info.values())
 
 class GeckoTerminalApi:
     api_url = "https://api.geckoterminal.com/api/v2"
@@ -33,6 +42,7 @@ class GeckoTerminalApi:
 
 if __name__ == "__main__":
     api = GeckoTerminalApi()
+    GeckoTerminalApi.get_trending_pairs()
     chart = api.get_ohlcv_data("EQBCwe_IObXA4Mt3RbcHil2s4-v4YQS3wUDt1-DvZOceeMGO")
 
     ohlc = [
