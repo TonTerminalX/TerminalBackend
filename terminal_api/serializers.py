@@ -52,4 +52,19 @@ class PairSerializer(serializers.Serializer):
     fdv = serializers.IntegerField(min_value=0)
     market_cap = serializers.IntegerField(source='marketCap', min_value=0)
     pair_created_at = serializers.IntegerField(source='pairCreatedAt', min_value=0)
-    info = serializers.JSONField(allow_null=True, required=False)
+    info = serializers.JSONField(allow_null=True, default=None, required=False)
+
+
+class PairDetailedInfoSerializer(serializers.Serializer):
+    ...
+
+
+class MakeSwapSerializer(serializers.Serializer):
+    pair_address = serializers.CharField(max_length=200)
+    amount = serializers.FloatField(min_value=0)
+    slippage = serializers.FloatField(min_value=0, max_value=100)
+
+
+
+class WalletInfoSerializer(serializers.Serializer):
+    pass

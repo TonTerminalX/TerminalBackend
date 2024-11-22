@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor
+
 from asgiref.sync import async_to_sync
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
@@ -10,7 +12,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from core.authenticate import CookieJWTAuthentication
 from terminal_api.models import UserWallets, User, Position
 from terminal_api.serializers import RegisterOrLoginUserSerializer, PositionSerializer, GetUserSerializer, \
-    PairSerializer
+    PairSerializer, MakeSwapSerializer
 
 from terminal_api.utils.dexapi import DexScreenerApi
 from terminal_api.utils.geckoapi import GeckoTerminalApi
@@ -150,11 +152,19 @@ class GetPairsChart(APIView):
 class GetTrendingPairs(APIView):
     def get(self, request):
         pairs = GeckoTerminalApi.get_trending_pairs()
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            pair_addresses = list(map(lambda x: x["attributes"]["address"], pairs))
+            dexscreener_pairs = list(executor.map(DexScreenerApi.get_pair, pair_addresses))
+
+        for dex_pair, gecko_pair in zip(dexscreener_pairs, pairs):
+            gecko_pair["info"] = dex_pair.get("info")
+
+        # serialized = PairSerializer(pairs, many=True)
         return Response(pairs)
 
 
 class GetAddressInformation(APIView):
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, address):
@@ -163,7 +173,7 @@ class GetAddressInformation(APIView):
 
 
 class GetCreateUserOrders(APIView):
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -196,3 +206,13 @@ class GetCreateUserPositions(APIView):
             position["pnl"] = (pair_price_usd / position["created_at_price"] - 1) * 100
 
         return Response(all_user_positions)
+
+
+class SwapView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CookieJWTAuthentication]
+    serializer_class = MakeSwapSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)

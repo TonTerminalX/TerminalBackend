@@ -8,8 +8,9 @@ urlpatterns = [
     path("users/me/", views.UserMeView.as_view()),
     path("pairs/", views.GetSearchPairs.as_view()),
     path("pairs/trending/", views.GetTrendingPairs.as_view()),
-    path("pairs/<str:pool_address>", views.GetPair.as_view()),
+    path("pairs/<str:pool_address>/", views.GetPair.as_view()),
     path("pairs/<str:pool_address>/chart", views.GetPairsChart.as_view()),
     path("positions/", views.GetCreateUserPositions.as_view()),
+    path("swap/", views.SwapView.as_view())
     # path("wallets/", views.RegisterGetUserView.as_view()),
 ]

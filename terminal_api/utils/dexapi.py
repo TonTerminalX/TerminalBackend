@@ -22,7 +22,6 @@ class DexScreenerApi:
     def get_pair(cls, pair_address):
         response = requests.get(cls.dexscreener_api + cls.get_pair_endpoint.format(chain="ton", pair=pair_address))
         response.raise_for_status()
-        print(response.json())
 
         pairs = response.json()["pairs"]
         return pairs[0] if pairs else None
