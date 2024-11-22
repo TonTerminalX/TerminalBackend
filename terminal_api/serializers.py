@@ -52,4 +52,4 @@ class PairSerializer(serializers.Serializer):
     fdv = serializers.IntegerField(min_value=0)
     market_cap = serializers.IntegerField(source='marketCap', min_value=0)
     pair_created_at = serializers.IntegerField(source='pairCreatedAt', min_value=0)
-    info = serializers.JSONField()
+    info = serializers.JSONField(allow_null=True, required=False)
