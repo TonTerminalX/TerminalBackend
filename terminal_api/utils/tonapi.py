@@ -30,7 +30,12 @@ class TonCenterApi:
         })
         response.raise_for_status()
 
-        return response.json()
+        wallet_info = response.json()
+        result = {
+            "status": wallet_info["status"],
+            "balance": int(wallet_info["balance"]) / 10 ** 9
+        }
+        return result
 
     @classmethod
     def run_get_method(cls, address: str, method: str, stack: list):
@@ -42,4 +47,3 @@ class TonCenterApi:
         response = requests.post(cls.api_url + cls.run_get_method_endpoint, json=body)
         response.raise_for_status()
         return response.json()
-
