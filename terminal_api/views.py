@@ -216,3 +216,13 @@ class SwapView(APIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        user = request.user
+        wallet = user.wallet
+        swap_tx = WalletUtils.make_swap(pool_address=serializer.pair_address,
+                                        jetton_address=serializer.jetton_address,
+                                        is_ton_transfer=serializer.is_ton_transfer,
+                                        amount=serializer.amount,
+                                        private_key=wallet.private_key)
+
+        return Response({"hash": swap_tx})

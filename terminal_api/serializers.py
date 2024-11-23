@@ -61,6 +61,8 @@ class PairDetailedInfoSerializer(serializers.Serializer):
 
 class MakeSwapSerializer(serializers.Serializer):
     pair_address = serializers.CharField(max_length=200)
+    jetton_address = serializers.CharField(max_length=200)
+    is_ton_transfer = serializers.BooleanField()
     amount = serializers.FloatField(min_value=0)
     slippage = serializers.FloatField(min_value=0, max_value=100)
 
