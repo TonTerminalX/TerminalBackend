@@ -11,6 +11,6 @@ urlpatterns = [
     path("pairs/<str:pool_address>/", views.GetPair.as_view()),
     path("pairs/<str:pool_address>/chart", views.GetPairsChart.as_view()),
     path("positions/", views.GetCreateUserPositions.as_view()),
-    path("wallets/swap/", views.MakeSwapView.as_view()),
+    path("wallets/swap/", views.SwapView.as_view()),
     # path("wallets/", views.RegisterGetUserView.as_view()),
 ]
