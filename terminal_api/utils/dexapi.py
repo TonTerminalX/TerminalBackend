@@ -20,7 +20,6 @@ class DexScreenerApi:
 
     @classmethod
     def get_pair(cls, pair_address):
-        print(pair_address)
         response = requests.get(cls.dexscreener_api + cls.get_pair_endpoint.format(chain="ton", pair=pair_address))
         response.raise_for_status()
 

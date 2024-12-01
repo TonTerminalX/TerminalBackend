@@ -161,10 +161,13 @@ class GetTrendingPairs(APIView):
         with ThreadPoolExecutor(max_workers=10) as executor:
             pair_addresses = list(map(lambda x: x["attributes"]["address"], filtered_pairs))
             dexscreener_pairs = list(executor.map(DexScreenerApi.get_pair, pair_addresses))
-            dexscreener_pairs = list(filter(lambda x: x, dexscreener_pairs))
+            # dexscreener_pairs = list(filter(lambda x: x, dexscreener_pairs))
 
         for dex_pair, gecko_pair in zip(dexscreener_pairs, pairs):
-            gecko_pair["info"] = dex_pair.get("info")
+            if dex_pair:
+                gecko_pair["info"] = dex_pair.get("info")
+            else:
+                gecko_pair["info"] = {}
 
         # serialized = PairSerializer(pairs, many=True)
         return Response(pairs)
