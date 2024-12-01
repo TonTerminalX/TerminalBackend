@@ -33,7 +33,7 @@ class TonCenterApi:
         wallet_info = response.json()
         result = {
             "status": wallet_info["status"],
-            "balance": int(wallet_info["balance"]) / 10 ** 9
+            "balance": int(float(wallet_info["balance"])) / 10 ** 9
         }
         return result
 

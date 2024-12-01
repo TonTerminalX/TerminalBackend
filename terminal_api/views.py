@@ -6,7 +6,6 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from core.authenticate import CookieJWTAuthentication
@@ -42,7 +41,7 @@ class RegisterUserView(APIView):
 
         is_user_exists = User.objects.filter(address=address).exists()
         if is_user_exists:
-            return Response({"detail": "already registered"}, status=status.HTTP_409_CONFLICT)
+            return Response({"detail": "Already registered"}, status=status.HTTP_409_CONFLICT)
 
         _, new_address, new_private_key, new_public_key, new_mnemonic = async_to_sync(WalletUtils.generate_wallet)()
         new_wallet = UserWallets(address=new_address, private_key=new_private_key, mnemonic=new_mnemonic, public_key=new_public_key)
@@ -139,8 +138,9 @@ class GetPair(APIView):
         if not result:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
-        serialized = self.serializer_class(result)
-        return Response(serialized.data)
+        serializer = self.serializer_class(result)
+        print(result)
+        return Response(serializer.data)
 
 
 class GetPairsChart(APIView):
@@ -151,9 +151,16 @@ class GetPairsChart(APIView):
 
 class GetTrendingPairs(APIView):
     def get(self, request):
+        print("1212")
         pairs = GeckoTerminalApi.get_trending_pairs()
+        filtered_pairs = list(
+            filter(
+                lambda x: x["relationships"]["quote_token"]["data"]["id"] == WalletUtils.TON_TOKEN_ADDRESS,
+                pairs
+            )
+        )
         with ThreadPoolExecutor(max_workers=10) as executor:
-            pair_addresses = list(map(lambda x: x["attributes"]["address"], pairs))
+            pair_addresses = list(map(lambda x: x["attributes"]["address"], filtered_pairs))
             dexscreener_pairs = list(executor.map(DexScreenerApi.get_pair, pair_addresses))
 
         for dex_pair, gecko_pair in zip(dexscreener_pairs, pairs):
@@ -219,10 +226,14 @@ class SwapView(APIView):
 
         user = request.user
         wallet = user.wallet
-        swap_tx = WalletUtils.make_swap(pool_address=serializer.pair_address,
-                                        jetton_address=serializer.jetton_address,
-                                        is_ton_transfer=serializer.is_ton_transfer,
-                                        amount=serializer.amount,
-                                        private_key=wallet.private_key)
+        try:
+            swap_tx = WalletUtils.make_swap(pool_address=serializer.pair_address,
+                                            jetton_address=serializer.jetton_address,
+                                            is_ton_transfer=serializer.is_ton_transfer,
+                                            amount=serializer.amount,
+                                            private_key=wallet.private_key)
+        except ValueError as e:
+            print(e)
+            return Response(data={"detail": "Wallet balance insufficient"})
 
-        return Response({"hash": swap_tx})
+        return Response(data={"hash": swap_tx})

@@ -1,6 +1,6 @@
 import asyncio
 
-from pytoniq import WalletV4R2
+from pytoniq import WalletV4R2, LiteClient
 from pytoniq_core import Cell, begin_cell, Address
 from pytoniq_core.crypto.keys import mnemonic_to_private_key, private_key_to_public_key
 from pytoniq_core.crypto.signature import sign_message, verify_sign
@@ -16,6 +16,7 @@ class WalletUtils:
     JETTON_SWAP_SELECTOR = 3818968194
     JETTON_TRANSFER_SELECTOR = 260734629
     SWAP_ADDRESS = Address("EQCo_dAv39DAV62oG5HIC_nVeVjIaVZi-Zmlzjbx8AoPqjZb")
+    TON_TOKEN_ADDRESS = "ton_EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"
 
     @staticmethod
     def get_public_key_bytes(address: str):
@@ -146,14 +147,20 @@ class WalletUtils:
         jetton_wallet_address = jetton_wallet_address[0].load_address()
         return jetton_wallet_address
 
+
     @classmethod
     async def make_swap(cls, pool_address: str, jetton_address: str | None, is_ton_transfer: bool,
                         amount: float, private_key: str):
         client = await get_client()
         wallet = await WalletV4R2.from_private_key(client, bytes.fromhex(private_key))
+        wallet_balance = (await TonCenterApi.get_account_info(wallet.address))["balance"]
         jetton_wallet_address = await cls.get_jetton_address(client, wallet.address, jetton_address)
         print(f"Jetton wallet address ({wallet.address}): {jetton_wallet_address}")
+        print(f"Wallet balance ({wallet.address}): {wallet_balance}")
         await client.close()
+
+        if wallet_balance < amount:
+            raise ValueError()
 
         if is_ton_transfer:
             ton_amount = amount
@@ -185,6 +192,8 @@ async def test():
 
 if __name__ == "__main__":
     print(asyncio.run(test()))
+    client: LiteClient = asyncio.run(get_client())
+    print(asyncio.run(client.get_account_state("UQBOO2tBR6N8TsU4RBHYaY5Mdss4hx3hJCEMFYYeZsd3xu1Z")))
     # wallet, address, private, public, mnemonic = asyncio.run(WalletUtils.generate_wallet())
     # print(private, address, public, mnemonic)
     # sign = asyncio.run(WalletUtils.sign_message("test", private)).hex()

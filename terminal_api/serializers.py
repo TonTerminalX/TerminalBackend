@@ -51,7 +51,7 @@ class PairSerializer(serializers.Serializer):
     liquidity = serializers.JSONField()
     fdv = serializers.IntegerField(min_value=0)
     market_cap = serializers.IntegerField(source='marketCap', min_value=0)
-    pair_created_at = serializers.IntegerField(source='pairCreatedAt', min_value=0)
+    pair_created_at = serializers.IntegerField(source='pairCreatedAt', min_value=0, allow_null=True, required=False)
     info = serializers.JSONField(allow_null=True, default=None, required=False)
 
 
@@ -65,7 +65,6 @@ class MakeSwapSerializer(serializers.Serializer):
     is_ton_transfer = serializers.BooleanField()
     amount = serializers.FloatField(min_value=0)
     slippage = serializers.FloatField(min_value=0, max_value=100)
-
 
 
 class WalletInfoSerializer(serializers.Serializer):
