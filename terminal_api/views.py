@@ -27,7 +27,7 @@ class RegisterUserView(APIView):
 
         data = serializer.data
         sign, address, message = data["signature"], data["address"], data["message"]
-        public_key = WalletUtils.get_public_key_bytes(address)
+        # public_key = WalletUtils.get_public_key_bytes(address)
 
         # is_verified_signature = WalletUtils.verify_sign(public_key, message, sign)
         # if not is_verified_signature:
