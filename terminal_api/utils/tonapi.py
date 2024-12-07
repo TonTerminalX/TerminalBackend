@@ -23,17 +23,21 @@ class TonCenterApi:
     run_get_method_endpoint = "/v3/runGetMethod"
 
     @classmethod
-    def get_account_info(cls, address: str):
-        response = requests.get(cls.api_url + cls.account_info_endpoint, params={
+    def get_account_info(cls, address: str | Address):
+        if isinstance(address, Address):
+            address = address.to_str()
+        params = {
             "address": address,
             "use_v2": False,
-        })
+        }
+        response = requests.get(cls.api_url + cls.account_info_endpoint, params=params)
         response.raise_for_status()
 
         wallet_info = response.json()
+        print(wallet_info)
         result = {
             "status": wallet_info["status"],
-            "balance": int(float(wallet_info["balance"])) / 10 ** 9
+            "balance": float(wallet_info["balance"]) / 10 ** 9
         }
         return result
 
@@ -47,3 +51,8 @@ class TonCenterApi:
         response = requests.post(cls.api_url + cls.run_get_method_endpoint, json=body)
         response.raise_for_status()
         return response.json()
+
+
+if __name__ == "__main__":
+    print(TonCenterApi.get_account_info("EQDhOY5FrggXpkbyKPbW76zLfwhfUW7IXrsrOg9gBVUmHDSn"))
+    print(TonCenterApi.get_account_info("UQCMOXxD-f8LSWWbXQowKxqTr3zMY-X1wMTyWp3B-LR6syif"))

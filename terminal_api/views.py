@@ -78,12 +78,16 @@ class LoginUserView(APIView):
         data = serializer.data
 
         sign, address, message = data["signature"], data["address"], data["message"]
-        public_key = WalletUtils.get_public_key_bytes(address)
+        # public_key = WalletUtils.get_public_key_bytes(address)
         # is_verified_signature = verify_sign(public_key, message, sign)
         # if not is_verified_signature:
         #     return Response("Failed to verify signed message signature.", status=status.HTTP_400_BAD_REQUEST)
 
-        user = User.objects.get(address=address)
+        try:
+            user = User.objects.get(address=address)
+        except User.DoesNotExist:
+            return Response({"detail": "User with this credentials not found"}, status=status.HTTP_401_UNAUTHORIZED)
+
         refresh = RefreshToken.for_user(user)
 
         response = Response(status=status.HTTP_200_OK)
@@ -226,15 +230,17 @@ class SwapView(APIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
+        data = serializer.data
+        print(data)
 
         user = request.user
         wallet = user.wallet
         try:
-            swap_tx = WalletUtils.make_swap(pool_address=serializer.pair_address,
-                                            jetton_address=serializer.jetton_address,
-                                            is_ton_transfer=serializer.is_ton_transfer,
-                                            amount=serializer.amount,
-                                            private_key=wallet.private_key)
+            swap_tx = async_to_sync(WalletUtils.make_swap)(pool_address=data.get("pair_address"),
+                                            jetton_address=data.get("jetton_address"),
+                                            is_ton_transfer=data.get("is_ton_transfer"),
+                                            amount=data.get("amount"),
+                                            mnemonic=wallet.mnemonic)
         except ValueError as e:
             print(e)
             return Response(data={"detail": "Wallet balance insufficient"})

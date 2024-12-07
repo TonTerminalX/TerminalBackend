@@ -5,7 +5,7 @@ from pytoniq import LiteClient, LiteBalancer
 async def get_client():
     client: LiteClient = LiteClient.from_mainnet_config(
         ls_i=0,
-        trust_level=2,
+        # trust_level=2,
         timeout=15
     )
     await client.connect()
