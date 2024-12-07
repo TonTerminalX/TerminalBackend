@@ -95,7 +95,7 @@ class WalletUtils(DedustSwapModule):
                                     .store_coins(to_nano(amount))
                                     .store_address(pool_address)
                                     .store_address(recipient)
-                                    .store_coins(to_nano(0.25))
+                                    .store_coins(to_nano(0.005))
                                     .store_maybe_ref(dedust_swap_payload)
                                     .end_cell())
 
@@ -130,7 +130,7 @@ class WalletUtils(DedustSwapModule):
         # Payload to trigger the swap
         native_vault_payload = (
             begin_cell()
-            .store_uint(cls.JETTON_SWAP_SELECTOR, 32)
+            .store_uint(cls.TON_JETTON_SWAP, 32)
             .store_uint(query_id, 64)
             .store_coins(amount)
             .store_address(pool_address)
@@ -168,7 +168,7 @@ class WalletUtils(DedustSwapModule):
         return
 
     @classmethod
-    async def wait_for_transaction(cls, client: LiteClient, address: str | Address, swap_send_time: int):
+    async def wait_for_transaction(cls, client: LiteClient, address: str | Address, swap_send_time: float = None):
         if isinstance(address, str):
             address = Address(address)
         last_tx = (await client.get_transactions(address, count=1))[0]
@@ -209,11 +209,11 @@ class WalletUtils(DedustSwapModule):
 
         if is_ton_transfer:
             ton_amount = amount
-            swap_payload = cls.get_ton_swap_params(to_nano(ton_amount), pool_address, wallet.address).to_boc()
+            swap_payload = cls.get_ton_swap_params(to_nano(ton_amount), pool_address, wallet.address)
             dest_address = pool_address
         else:
             ton_amount = 0.01
-            swap_payload = cls.get_jetton_swap_params(to_nano(ton_amount), pool_address, wallet.address).to_boc()
+            swap_payload = cls.get_jetton_swap_params(to_nano(ton_amount), pool_address, wallet.address)
             dest_address = jetton_address
 
         dest_address = Address(dest_address)
@@ -224,7 +224,7 @@ class WalletUtils(DedustSwapModule):
 
         if (fee_amount := int(to_nano(ton_amount) * cls.SWAP_FEE)) > 1:
             fee_message = wallet.create_wallet_internal_message(
-                destination=cls.SWAP_FEE_RECIPIENT, value=to_nano(fee_amount), body=Cell.empty(), state_init=None
+                destination=cls.SWAP_FEE_RECIPIENT, value=fee_amount, body=Cell.empty(), state_init=None
             )
             msgs.append(fee_message)
 
@@ -234,7 +234,8 @@ class WalletUtils(DedustSwapModule):
         swap_status = await wallet.raw_transfer(msgs=msgs)
         swap_send_time = time.time()
         print(swap_status)
-        tx_hash = cls.wait_for_transaction(client, wallet.address)
+        # tx_hash = cls.wait_for_transaction(client, wallet.address, swap_send_time)
+        await client.close()
         return swap_status
 
 
@@ -274,7 +275,7 @@ async def test3():
 if __name__ == "__main__":
     # print(asyncio.run(test()))
     client: LiteClient = asyncio.run(get_client())
-    print(asyncio.run(WalletUtils.wait_for_transaction(client, "")))
+    print(asyncio.run(WalletUtils.wait_for_transaction(client, "UQDhOY5FrggXpkbyKPbW76zLfwhfUW7IXrsrOg9gBVUmHGli")))
     # print(asyncio.run(client.get_account_state("UQBOO2tBR6N8TsU4RBHYaY5Mdss4hx3hJCEMFYYeZsd3xu1Z")))
 
     # wallet, address, private, public, mnemonic = asyncio.run(WalletUtils.generate_wallet())
