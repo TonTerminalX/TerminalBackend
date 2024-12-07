@@ -74,14 +74,13 @@ class WalletUtils(DedustSwapModule):
         swap_params = (begin_cell()
                        .store_uint(deadline, 32)
                        .store_address(recipient)
-                       .store_address(recipient)
-                       .store_maybe_ref(empty_cell)
-                       .store_maybe_ref(empty_cell)
+                       .store_address(None)
+                       .store_maybe_ref(None)
+                       .store_maybe_ref(None)
                        .end_cell())
 
         dedust_swap_payload = (begin_cell()
                                .store_uint(cls.JETTON_SWAP_SELECTOR, 32)
-                               .store_coins(to_nano(amount))
                                .store_address(pool_address)
                                .store_uint(0, 1)
                                .store_coins(0)  # Slippage 100%
@@ -95,22 +94,23 @@ class WalletUtils(DedustSwapModule):
                                     .store_coins(to_nano(amount))
                                     .store_address(pool_address)
                                     .store_address(recipient)
-                                    .store_coins(to_nano(0.005))
+                                    .store_maybe_ref(None)
+                                    .store_coins(to_nano(0.25))
                                     .store_maybe_ref(dedust_swap_payload)
                                     .end_cell())
 
-        contract_payload = (begin_cell()
-                            .store_uint(cls.JETTON_SWAP_SELECTOR)
-                            .store_uint(query_id, 64)
-                            .store_coins(to_nano(amount))
-                            .store_address(cls.SWAP_ADDRESS)
-                            .store_address(recipient)
-                            .store_maybe_ref(None)
-                            .store_coins(to_nano(amount))
-                            .store_maybe_ref(jetton_transfer_and_swap)
-                            .end_cell())
+        # contract_payload = (begin_cell()
+        #                     .store_uint(cls.JETTON_SWAP_SELECTOR)
+        #                     .store_uint(query_id, 64)
+        #                     .store_coins(to_nano(amount))
+        #                     .store_address(cls.SWAP_ADDRESS)
+        #                     .store_address(recipient)
+        #                     .store_maybe_ref(None)
+        #                     .store_coins(to_nano(amount))
+        #                     .store_maybe_ref(jetton_transfer_and_swap)
+        #                     .end_cell())
 
-        return contract_payload
+        return jetton_transfer_and_swap
 
     @classmethod
     def get_ton_swap_params(cls, amount: int, pool_address, recipient: str):
@@ -189,12 +189,11 @@ class WalletUtils(DedustSwapModule):
 
         return current_tx_hash
 
-
     @classmethod
     async def make_swap(cls, pool_address: str, jetton_address: str | None, is_ton_transfer: bool,
-                        amount: float, mnemonic: str):
+                        amount: float, mnemonic: str, slippage: int):
         # client = await get_client()
-        client = LiteClient.from_mainnet_config(timeout=20)
+        client = LiteClient.from_mainnet_config(timeout=20, ls_i=0)
         await client.connect()
         wallet = await WalletV4R2.from_mnemonic(client, mnemonic)
         wallet_info = TonCenterApi.get_account_info(wallet.address)
@@ -204,22 +203,22 @@ class WalletUtils(DedustSwapModule):
         print(f"Jetton wallet address ({wallet.address}): {jetton_wallet_address}")
         print(f"Wallet balance ({wallet.address}): {wallet_balance}")
 
-        if wallet_balance < amount:
-            raise ValueError()
-
-        pool_address = Address(pool_address).to_str(is_bounceable=False)
+        pool_address = Address(pool_address).to_str(is_bounceable=True)
         if is_ton_transfer:
             ton_amount = amount
             swap_payload = cls.get_ton_swap_params(to_nano(ton_amount), pool_address, wallet.address)
             dest_address = cls.NATIVE_VAULT_ADDRESS
         else:
-            ton_amount = 0.01
-            swap_payload = cls.get_jetton_swap_params(to_nano(ton_amount), pool_address, wallet.address)
+            ton_amount = 0
+            swap_payload = cls.get_jetton_swap_params(to_nano(amount), pool_address, wallet.address)
             dest_address = jetton_address
+
+        if wallet_balance < ton_amount:
+            raise ValueError()
 
         dest_address = Address(dest_address)
         swap_message = wallet.create_wallet_internal_message(
-            destination=dest_address, value=to_nano(ton_amount), body=swap_payload, state_init=None
+            destination=dest_address, value=to_nano(ton_amount + 0.25), body=swap_payload, state_init=None
         )
         msgs = [swap_message]
 
@@ -256,7 +255,8 @@ async def test():
 
 async def test2():  # У МЕНЯ СЕЙЧАС КРЫША ПОЕДЕТ
     client = await get_client()
-    address = Address("UQBOO2tBR6N8TsU4RBHYaY5Mdss4hx3hJCEMFYYeZsd3xu1Z")  # "UQCMOXxD-f8LSWWbXQowKxqTr3zMY-X1wMTyWp3B-LR6syif"
+    address = Address(
+        "UQBOO2tBR6N8TsU4RBHYaY5Mdss4hx3hJCEMFYYeZsd3xu1Z")  # "UQCMOXxD-f8LSWWbXQowKxqTr3zMY-X1wMTyWp3B-LR6syif"
     jetton_address = Address("EQB02DJ0cdUD4iQDRbBv4aYG3htePHBRK1tGeRtCnatescK0")
 
     jetton_wallet_address = await WalletUtils.get_jetton_address(client, address, jetton_address)

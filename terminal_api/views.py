@@ -44,7 +44,8 @@ class RegisterUserView(APIView):
             return Response({"detail": "Already registered"}, status=status.HTTP_409_CONFLICT)
 
         _, new_address, new_private_key, new_public_key, new_mnemonic = async_to_sync(WalletUtils.generate_wallet)()
-        new_wallet = UserWallets(address=new_address, private_key=new_private_key, mnemonic=new_mnemonic, public_key=new_public_key)
+        new_wallet = UserWallets(address=new_address, private_key=new_private_key, mnemonic=new_mnemonic,
+                                 public_key=new_public_key)
         new_wallet.save()
 
         user = User(address=address, wallet=new_wallet)
@@ -237,10 +238,11 @@ class SwapView(APIView):
         wallet = user.wallet
         try:
             swap_tx = async_to_sync(WalletUtils.make_swap)(pool_address=data.get("pair_address"),
-                                            jetton_address=data.get("jetton_address"),
-                                            is_ton_transfer=data.get("is_ton_transfer"),
-                                            amount=data.get("amount"),
-                                            mnemonic=wallet.mnemonic)
+                                                           jetton_address=data.get("jetton_address"),
+                                                           is_ton_transfer=data.get("is_ton_transfer"),
+                                                           amount=data.get("amount"),
+                                                           slippage=data.get("slippage"),
+                                                           mnemonic=wallet.mnemonic)
         except ValueError as e:
             print(e)
             return Response(data={"detail": "Wallet balance insufficient"})
