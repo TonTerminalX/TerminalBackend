@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 from pytoniq import WalletV4R2, LiteClient
 from pytoniq_core import Cell, begin_cell, Address
@@ -166,11 +167,25 @@ class WalletUtils(DedustSwapModule):
         )
         return
 
-    # @classmethod
-    # async def wait_for_transaction(cls, client: LiteClient, address: str | Address, lt: int):
-    #     if isinstance(address, str):
-    #         address = Address(address)
-    #     tx_info = await client.get_transactions(address=address, lt=lt)
+    @classmethod
+    async def wait_for_transaction(cls, client: LiteClient, address: str | Address, swap_send_time: int):
+        if isinstance(address, str):
+            address = Address(address)
+        last_tx = (await client.get_transactions(address, count=1))[0]
+        last_tx_hash = last_tx
+        # if last_tx.
+        current_tx_hash = last_tx_hash
+
+        start_time = time.time()
+        end_time = start_time + 20
+        while current_tx_hash == last_tx_hash:
+            if time.time() > end_time:
+                return None
+            current_tx_hash = (await client.get_transactions(address, count=1))[0]
+            current_tx_hash = current_tx_hash
+            await asyncio.sleep(1)
+
+        return current_tx_hash
 
 
     @classmethod
@@ -205,7 +220,7 @@ class WalletUtils(DedustSwapModule):
         swap_message = wallet.create_wallet_internal_message(
             destination=dest_address, value=to_nano(ton_amount), body=swap_payload, state_init=None
         )
-        msgs = []  # [swap_message]
+        msgs = [swap_message]
 
         if (fee_amount := int(to_nano(ton_amount) * cls.SWAP_FEE)) > 1:
             fee_message = wallet.create_wallet_internal_message(
@@ -216,9 +231,11 @@ class WalletUtils(DedustSwapModule):
         if wallet.is_uninitialized and not wallet.is_active:
             await wallet.send_init_external()
 
-        swap_tx = await wallet.raw_transfer(msgs=msgs)
-        print(swap_tx, type(swap_tx))
-        return swap_tx
+        swap_status = await wallet.raw_transfer(msgs=msgs)
+        swap_send_time = time.time()
+        print(swap_status)
+        tx_hash = cls.wait_for_transaction(client, wallet.address)
+        return swap_status
 
 
 async def test():
@@ -256,8 +273,8 @@ async def test3():
 
 if __name__ == "__main__":
     # print(asyncio.run(test()))
-    # client: LiteClient = asyncio.run(get_client())
-    print(asyncio.run(test3()))
+    client: LiteClient = asyncio.run(get_client())
+    print(asyncio.run(WalletUtils.wait_for_transaction(client, "")))
     # print(asyncio.run(client.get_account_state("UQBOO2tBR6N8TsU4RBHYaY5Mdss4hx3hJCEMFYYeZsd3xu1Z")))
 
     # wallet, address, private, public, mnemonic = asyncio.run(WalletUtils.generate_wallet())

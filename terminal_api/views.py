@@ -245,4 +245,4 @@ class SwapView(APIView):
             print(e)
             return Response(data={"detail": "Wallet balance insufficient"})
 
-        return Response(data={"hash": swap_tx})
+        return Response(data={"status": swap_tx})
