@@ -117,6 +117,8 @@ class WalletUtils(DedustSwapModule):
         deadline = 0
         query_id = 0
         limit = 0
+        if isinstance(pool_address, str):
+            pool_address = Address(pool_address)
         swap_params = (
             begin_cell()
             .store_uint(deadline, 32)  # deadline
@@ -192,25 +194,24 @@ class WalletUtils(DedustSwapModule):
     async def make_swap(cls, pool_address: str, jetton_address: str | None, is_ton_transfer: bool,
                         amount: float, mnemonic: str):
         # client = await get_client()
-        client = LiteClient.from_mainnet_config()
+        client = LiteClient.from_mainnet_config(timeout=20)
         await client.connect()
         wallet = await WalletV4R2.from_mnemonic(client, mnemonic)
         wallet_info = TonCenterApi.get_account_info(wallet.address)
-        wallet_status = wallet_info["status"]
         wallet_balance = wallet_info["balance"]
 
         jetton_wallet_address = await cls.get_jetton_address(client, wallet.address, jetton_address)
         print(f"Jetton wallet address ({wallet.address}): {jetton_wallet_address}")
         print(f"Wallet balance ({wallet.address}): {wallet_balance}")
-        # await client.close() # WTF!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         if wallet_balance < amount:
             raise ValueError()
 
+        pool_address = Address(pool_address).to_str(is_bounceable=False)
         if is_ton_transfer:
             ton_amount = amount
             swap_payload = cls.get_ton_swap_params(to_nano(ton_amount), pool_address, wallet.address)
-            dest_address = pool_address
+            dest_address = cls.NATIVE_VAULT_ADDRESS
         else:
             ton_amount = 0.01
             swap_payload = cls.get_jetton_swap_params(to_nano(ton_amount), pool_address, wallet.address)
@@ -264,18 +265,15 @@ async def test2():  # У МЕНЯ СЕЙЧАС КРЫША ПОЕДЕТ
 
 
 async def test3():
-    client = await get_client()
-    mnemonic = "six cancel dial blur battle song insect ring slight tattoo worth outdoor worth fuel foam fish chronic canoe eyebrow asset tip capable cross eagle"
-    address = "EQDhOY5FrggXpkbyKPbW76zLfwhfUW7IXrsrOg9gBVUmHDSn"
-
-    wallet = await WalletV4R2.from_mnemonic(client, mnemonic)
-    print(wallet.address)
+    client = LiteClient.from_mainnet_config(ls_i=0, timeout=15)
+    await client.connect()
 
 
 if __name__ == "__main__":
     # print(asyncio.run(test()))
     client: LiteClient = asyncio.run(get_client())
-    print(asyncio.run(WalletUtils.wait_for_transaction(client, "UQDhOY5FrggXpkbyKPbW76zLfwhfUW7IXrsrOg9gBVUmHGli")))
+    print(asyncio.run(client.get_account_state("UQDhOY5FrggXpkbyKPbW76zLfwhfUW7IXrsrOg9gBVUmHGli")))
+    # print(asyncio.run(WalletUtils.wait_for_transaction(client, "UQDhOY5FrggXpkbyKPbW76zLfwhfUW7IXrsrOg9gBVUmHGli")))
     # print(asyncio.run(client.get_account_state("UQBOO2tBR6N8TsU4RBHYaY5Mdss4hx3hJCEMFYYeZsd3xu1Z")))
 
     # wallet, address, private, public, mnemonic = asyncio.run(WalletUtils.generate_wallet())
