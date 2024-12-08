@@ -17,13 +17,13 @@ def to_nano(amount: float | int):
 
 
 def from_nano(amount: float | int):
-    return int(amount / 10 ** 9)
+    return amount / 10 ** 9
 
 
 class WalletUtils(DedustSwapModule):
     JETTON_TRANSFER_SELECTOR = 260734629
     TON_TOKEN_ADDRESS = "ton_EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"
-    DEFAULT_GAS = to_nano(0.3)
+    DEFAULT_GAS = 0.25
 
     @staticmethod
     def get_public_key_bytes(address: str):
@@ -137,7 +137,7 @@ class WalletUtils(DedustSwapModule):
             destination=jetton_vault.address,
             amount=amount,
             response_address=recipient,
-            forward_amount=cls.DEFAULT_GAS,
+            forward_amount=to_nano(cls.DEFAULT_GAS),
             forward_payload=VaultJetton.create_swap_payload(pool_address=pool.address)
         )
         return swap, jetton_wallet.address
@@ -239,7 +239,7 @@ class WalletUtils(DedustSwapModule):
         # print(f"Jetton wallet address ({wallet.address}): {jetton_wallet_address}")
         print(f"Wallet balance ({wallet.address}): {wallet_balance}")
 
-        min_amount = from_nano(cls.DEFAULT_GAS)
+        min_amount = cls.DEFAULT_GAS + 0.05
         pool_address = Address(pool_address).to_str(is_bounceable=True)
         if is_ton_transfer:
             ton_amount = amount
@@ -249,7 +249,7 @@ class WalletUtils(DedustSwapModule):
             ton_amount = min_amount
             swap_payload, jetton_wallet = await cls.get_jetton_swap_params(to_nano(amount), jetton_address,
                                                                            wallet.address, balancer)
-            dest_address = jetton_wallet
+            dest_address = Address(jetton_wallet.to_str())
 
         if min(wallet_balance, ton_amount) < min_amount:
             raise ValueError("Min amount")
