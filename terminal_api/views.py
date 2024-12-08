@@ -83,6 +83,7 @@ class LoginUserView(APIView):
         # is_verified_signature = verify_sign(public_key, message, sign)
         # if not is_verified_signature:
         #     return Response("Failed to verify signed message signature.", status=status.HTTP_400_BAD_REQUEST)
+        WalletUtils.generate_wallet()
 
         try:
             user = User.objects.get(address=address)
@@ -91,7 +92,7 @@ class LoginUserView(APIView):
 
         refresh = RefreshToken.for_user(user)
 
-        response = Response(status=status.HTTP_200_OK)
+        response = Response(data={"ok": True}, status=status.HTTP_200_OK)
         response.set_cookie(
             key='access_token',
             value=str(refresh.access_token),
@@ -243,8 +244,16 @@ class SwapView(APIView):
                                                            amount=data.get("amount"),
                                                            slippage=data.get("slippage"),
                                                            mnemonic=wallet.mnemonic)
+            swap_tx = "success" if swap_tx == 1 else swap_tx
         except ValueError as e:
-            print(e)
-            return Response(data={"detail": "Wallet balance insufficient"})
+            print(e, type(e))
+            detail = None
+            text_error = e.args[0]
+            if text_error == "Insufficient balance":
+                detail = "Wallet balance insufficient"
+            elif text_error == "Min amount":
+                detail = "Minimal amount is 0.3 TON. Ensure that amount and balance at least 0.3 TON"
+
+            return Response(data={"detail": detail})
 
         return Response(data={"status": swap_tx})
