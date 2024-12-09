@@ -6,12 +6,13 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.generics import RetrieveAPIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from core.authenticate import CookieJWTAuthentication
 from terminal_api.models import UserWallets, User, Position
 from terminal_api.serializers import RegisterOrLoginUserSerializer, PositionSerializer, GetUserSerializer, \
-    PairSerializer, MakeSwapSerializer
+    PairSerializer, MakeSwapSerializer, JettonBalanceSerializer, UserWalletsAddresses
 
 from terminal_api.utils.dexapi import DexScreenerApi
 from terminal_api.utils.geckoapi import GeckoTerminalApi
@@ -252,8 +253,30 @@ class SwapView(APIView):
             if text_error == "Insufficient balance":
                 detail = "Wallet balance insufficient"
             elif text_error == "Min amount":
-                detail = "Minimal amount is 0.3 TON. Ensure that amount and balance at least 0.3 TON"
+                detail = (f"Minimal amount is {WalletUtils.DEFAULT_GAS} TON. Ensure that amount and balance at least "
+                          f"{WalletUtils.DEFAULT_GAS} TON")
 
             return Response(data={"detail": detail})
 
         return Response(data={"status": swap_tx})
+
+
+class GetJettonBalance(APIView):
+    serializer_class = JettonBalanceSerializer
+
+    def get(self, request, address, jetton_address):
+        jetton_balance = TonCenterApi.get_jetton_balance(address, jetton_address)
+        return Response(data={"balance": jetton_balance, "address": address, "jetton": jetton_address})
+
+
+class GetWalletInfo(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CookieJWTAuthentication]
+    serializer_class = UserWalletsAddresses
+
+    def get_queryset(self):
+        return self.request.user.wallet
+
+    def get(self, request):
+        serialized_data = self.serializer_class(self.get_queryset()).data
+        return Response(data=serialized_data)

@@ -272,42 +272,11 @@ class WalletUtils(DedustSwapModule):
             await wallet.send_init_external()
 
         swap_status = await wallet.raw_transfer(msgs=msgs)
-        swap_send_time = time.time()
-        print(swap_status)
+        # swap_send_time = time.time()
         # tx_hash = cls.wait_for_transaction(client, wallet.address, swap_send_time)
         # await client.close()
         await balancer.close_all()
         return swap_status
-
-
-async def test():
-    client = await get_client()
-    address = Address("UQBOO2tBR6N8TsU4RBHYaY5Mdss4hx3hJCEMFYYeZsd3xu1Z")
-    address1 = Address("EQBC7TfBl0EAuO6k_w0NUCURfItDGzTyfTJ1JlfxShN1HaNd")
-    jetton_address = Address("EQB02DJ0cdUD4iQDRbBv4aYG3htePHBRK1tGeRtCnatescK0")
-
-    _stack = begin_cell().store_address(address).end_cell().begin_parse()
-    jetton_wallet_address = await client.run_get_method(address=jetton_address, method="get_wallet_address",
-                                                        stack=[_stack])
-    jetton_wallet_address = jetton_wallet_address[0].load_address()
-    print(f"Jetton wallet address ({address}): {jetton_wallet_address}")
-    print(address1)
-
-
-async def test2():  # У МЕНЯ СЕЙЧАС КРЫША ПОЕДЕТ
-    client = await get_client()
-    address = Address(
-        "UQBOO2tBR6N8TsU4RBHYaY5Mdss4hx3hJCEMFYYeZsd3xu1Z")  # "UQCMOXxD-f8LSWWbXQowKxqTr3zMY-X1wMTyWp3B-LR6syif"
-    jetton_address = Address("EQB02DJ0cdUD4iQDRbBv4aYG3htePHBRK1tGeRtCnatescK0")
-
-    jetton_wallet_address = await WalletUtils.get_jetton_address(client, address, jetton_address)
-    print(f"Jetton wallet address ({address}): {jetton_wallet_address}")
-    # print(await WalletUtils.get_jetton_address(client, address, jetton_address))
-
-
-async def test3():
-    client = LiteClient.from_mainnet_config(ls_i=0, timeout=15)
-    await client.connect()
 
 
 if __name__ == "__main__":

@@ -20,6 +20,7 @@ class TonCenterApi:
     }
 
     account_info_endpoint = "/v3/addressInformation"
+    jetton_wallets_endpoint = "/v3/jetton/wallets"
     run_get_method_endpoint = "/v3/runGetMethod"
 
     @classmethod
@@ -40,6 +41,22 @@ class TonCenterApi:
             "balance": float(wallet_info["balance"]) / 10 ** 9
         }
         return result
+
+    @classmethod
+    def get_jetton_balance(cls, address: str, jetton_address: str):
+        params = {
+            "owner_address": [address],
+            "jetton_address": [jetton_address],
+            "limit": 1
+        }
+        response = requests.get(cls.api_url + cls.jetton_wallets_endpoint, params=params)
+        response.raise_for_status()
+        response_data = response.json()
+
+        wallets = response_data["jetton_wallets"]
+        balance = int(wallets[0]["balance"]) / 10 ** 9
+        return balance
+
 
     @classmethod
     def run_get_method(cls, address: str, method: str, stack: list):
