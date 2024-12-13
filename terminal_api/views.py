@@ -53,7 +53,7 @@ class RegisterUserView(APIView):
         user.save()
         refresh = RefreshToken.for_user(user)
 
-        response = Response({"address": new_address, "mnemonic": new_mnemonic, "public_key": new_public_key})
+        response = Response(data={"address": new_address, "mnemonic": new_mnemonic, "public_key": new_public_key})
         response.set_cookie(
             key='access_token',
             value=str(refresh.access_token),
