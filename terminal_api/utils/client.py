@@ -5,22 +5,25 @@ from pytoniq import LiteClient, LiteBalancer
 async def get_client():
     client: LiteClient = LiteClient.from_mainnet_config(
         ls_i=0,
-        trust_level=2,
-        timeout=15
+        # trust_level=2,
+        timeout=20
     )
     await client.connect()
     return client
 
 
-async def test_func():
-    client: LiteClient = await (get_client())
-    result = await (
-        client.run_get_method("UQBmzW4wYlFW0tiBgj5sP1CgSlLdYs-VpjPWM7oPYPYWQBqW", "get_public_key", []))
+async def get_lite_balancer():
+    balancer = LiteBalancer.from_mainnet_config(timeout=10)
+    await balancer.start_up()
+    return balancer
 
-    print(result)
-    key = hex(result[0])
-    print(key)
-    return bytes.fromhex(key[2:])
+
+async def _test():
+    client = await get_client()
+    balancer = await get_lite_balancer()
+    await client.get_masterchain_info()
+    await balancer.get_masterchain_info()
+
 
 if __name__ == "__main__":
-    print(asyncio.run(test_func()))
+    asyncio.run(_test())

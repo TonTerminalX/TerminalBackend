@@ -6,12 +6,13 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.generics import RetrieveAPIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from core.authenticate import CookieJWTAuthentication
 from terminal_api.models import UserWallets, User, Position
 from terminal_api.serializers import RegisterOrLoginUserSerializer, PositionSerializer, GetUserSerializer, \
-    PairSerializer, MakeSwapSerializer
+    PairSerializer, MakeSwapSerializer, JettonBalanceSerializer, UserWalletsAddresses
 
 from terminal_api.utils.dexapi import DexScreenerApi
 from terminal_api.utils.geckoapi import GeckoTerminalApi
@@ -44,14 +45,15 @@ class RegisterUserView(APIView):
             return Response({"detail": "Already registered"}, status=status.HTTP_409_CONFLICT)
 
         _, new_address, new_private_key, new_public_key, new_mnemonic = async_to_sync(WalletUtils.generate_wallet)()
-        new_wallet = UserWallets(address=new_address, private_key=new_private_key, mnemonic=new_mnemonic, public_key=new_public_key)
+        new_wallet = UserWallets(address=new_address, private_key=new_private_key, mnemonic=new_mnemonic,
+                                 public_key=new_public_key)
         new_wallet.save()
 
         user = User(address=address, wallet=new_wallet)
         user.save()
         refresh = RefreshToken.for_user(user)
 
-        response = Response({"address": new_address, "mnemonic": new_mnemonic, "public_key": new_public_key})
+        response = Response(data={"address": new_address, "mnemonic": new_mnemonic, "public_key": new_public_key})
         response.set_cookie(
             key='access_token',
             value=str(refresh.access_token),
@@ -78,15 +80,20 @@ class LoginUserView(APIView):
         data = serializer.data
 
         sign, address, message = data["signature"], data["address"], data["message"]
-        public_key = WalletUtils.get_public_key_bytes(address)
+        # public_key = WalletUtils.get_public_key_bytes(address)
         # is_verified_signature = verify_sign(public_key, message, sign)
         # if not is_verified_signature:
         #     return Response("Failed to verify signed message signature.", status=status.HTTP_400_BAD_REQUEST)
+        WalletUtils.generate_wallet()
 
-        user = User.objects.get(address=address)
+        try:
+            user = User.objects.get(address=address)
+        except User.DoesNotExist:
+            return Response({"detail": "User with this credentials not found"}, status=status.HTTP_401_UNAUTHORIZED)
+
         refresh = RefreshToken.for_user(user)
 
-        response = Response(status=status.HTTP_200_OK)
+        response = Response(data={"ok": True}, status=status.HTTP_200_OK)
         response.set_cookie(
             key='access_token',
             value=str(refresh.access_token),
@@ -163,14 +170,14 @@ class GetTrendingPairs(APIView):
             dexscreener_pairs = list(executor.map(DexScreenerApi.get_pair, pair_addresses))
             # dexscreener_pairs = list(filter(lambda x: x, dexscreener_pairs))
 
-        for dex_pair, gecko_pair in zip(dexscreener_pairs, pairs):
+        for dex_pair, gecko_pair in zip(dexscreener_pairs, filtered_pairs):
             if dex_pair:
                 gecko_pair["info"] = dex_pair.get("info")
             else:
                 gecko_pair["info"] = {}
 
         # serialized = PairSerializer(pairs, many=True)
-        return Response(pairs)
+        return Response(filtered_pairs)
 
 
 class GetAddressInformation(APIView):
@@ -226,17 +233,50 @@ class SwapView(APIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
+        data = serializer.data
+        print(data)
 
         user = request.user
         wallet = user.wallet
         try:
-            swap_tx = WalletUtils.make_swap(pool_address=serializer.pair_address,
-                                            jetton_address=serializer.jetton_address,
-                                            is_ton_transfer=serializer.is_ton_transfer,
-                                            amount=serializer.amount,
-                                            private_key=wallet.private_key)
+            swap_tx = async_to_sync(WalletUtils.make_swap)(pool_address=data.get("pair_address"),
+                                                           jetton_address=data.get("jetton_address"),
+                                                           is_ton_transfer=data.get("is_ton_transfer"),
+                                                           amount=data.get("amount"),
+                                                           slippage=data.get("slippage"),
+                                                           mnemonic=wallet.mnemonic)
+            swap_tx = "success" if swap_tx == 1 else swap_tx
         except ValueError as e:
-            print(e)
-            return Response(data={"detail": "Wallet balance insufficient"})
+            print(e, type(e))
+            detail = None
+            text_error = e.args[0]
+            if text_error == "Insufficient balance":
+                detail = "Wallet balance insufficient"
+            elif text_error == "Min amount":
+                detail = (f"Minimal amount is {WalletUtils.DEFAULT_GAS} TON. Ensure that amount and balance at least "
+                          f"{WalletUtils.DEFAULT_GAS} TON")
 
-        return Response(data={"hash": swap_tx})
+            return Response(data={"detail": detail})
+
+        return Response(data={"status": swap_tx})
+
+
+class GetJettonBalance(APIView):
+    serializer_class = JettonBalanceSerializer
+
+    def get(self, request, address, jetton_address):
+        jetton_balance = TonCenterApi.get_jetton_balance(address, jetton_address)
+        return Response(data={"balance": jetton_balance, "address": address, "jetton": jetton_address})
+
+
+class GetWalletInfo(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CookieJWTAuthentication]
+    serializer_class = UserWalletsAddresses
+
+    def get_queryset(self):
+        return self.request.user.wallet
+
+    def get(self, request):
+        serialized_data = self.serializer_class(self.get_queryset()).data
+        return Response(data=serialized_data)

@@ -69,3 +69,14 @@ class MakeSwapSerializer(serializers.Serializer):
 
 class WalletInfoSerializer(serializers.Serializer):
     pass
+
+
+class JettonBalanceSerializer(serializers.Serializer):
+    jetton_address = serializers.CharField(max_length=48)
+    balance = serializers.FloatField(min_value=0)
+
+
+class UserWalletsAddresses(serializers.ModelSerializer):
+    class Meta:
+        model = UserWallets
+        fields = ["created_at", "address", "public_key"]

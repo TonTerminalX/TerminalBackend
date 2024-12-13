@@ -2,10 +2,10 @@ from django.db import models
 
 
 class UserWallets(models.Model):
-    address = models.CharField(max_length=200)
-    public_key = models.CharField(max_length=200)
-    mnemonic = models.CharField(max_length=200)
-    private_key = models.CharField(max_length=200)
+    address = models.CharField(max_length=48)
+    public_key = models.CharField(max_length=64)
+    mnemonic = models.CharField(max_length=220)
+    private_key = models.CharField(max_length=128)
     created_at = models.DateTimeField(auto_now_add=True)
 
 
