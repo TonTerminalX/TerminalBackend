@@ -100,7 +100,7 @@ class LoginUserView(APIView):
         response.set_cookie(
             key='access_token',
             value=str(refresh.access_token),
-            httponly=True,
+            # httponly=True,
             # secure=True,
         )
         return response
