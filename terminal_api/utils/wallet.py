@@ -7,6 +7,7 @@ from pytoniq_core import Cell, begin_cell, Address
 from pytoniq_core.crypto.keys import mnemonic_to_private_key, private_key_to_public_key
 from pytoniq_core.crypto.signature import sign_message, verify_sign
 
+from terminal_api.models import User, Transaction
 from terminal_api.utils.client import get_client, get_lite_balancer
 from terminal_api.utils.swap import DedustSwapModule
 from terminal_api.utils.tonapi import TonCenterApi
@@ -206,10 +207,12 @@ class WalletUtils(DedustSwapModule):
 
     @classmethod
     async def wait_for_transaction(cls, client: LiteClient, address: str | Address, swap_send_time: float = None):
-        if isinstance(address, str):
-            address = Address(address)
-        last_tx = (await client.get_transactions(address, count=1))[0]
-        last_tx_hash = last_tx
+        if isinstance(address, Address):
+            address = address.to_str()
+
+        toncenter = TonCenterApi()
+        last_tx = toncenter.get_transactions(address, limit=1)
+        last_tx_hash = last_tx[0]["transaction_id"]["hash"]
         # if last_tx.
         current_tx_hash = last_tx_hash
 
@@ -218,11 +221,22 @@ class WalletUtils(DedustSwapModule):
         while current_tx_hash == last_tx_hash:
             if time.time() > end_time:
                 return None
-            current_tx_hash = (await client.get_transactions(address, count=1))[0]
-            current_tx_hash = current_tx_hash
+            current_tx_hash = toncenter.get_transactions(address, limit=1)
+            current_tx_hash = current_tx_hash[0]["transaction_id"]["hash"]
             await asyncio.sleep(1)
 
         return current_tx_hash
+
+    @classmethod
+    async def write_transaction_data(cls, client: LiteBalancer, address: str, is_ton_transfer: bool,
+                                     jetton_address: str, pool_address: str):
+        swap_send_time = time.time()
+        user = User.find_user_by_wallet(address)
+        tx_hash = cls.wait_for_transaction(client, address, swap_send_time)
+        if not tx_hash:
+            return
+
+        transaction = Transaction(tx_hash=tx_hash)
 
     @classmethod
     async def make_swap(cls, pool_address: str, jetton_address: str | None, is_ton_transfer: bool,
@@ -273,17 +287,17 @@ class WalletUtils(DedustSwapModule):
 
         swap_status = await wallet.raw_transfer(msgs=msgs)
         # swap_send_time = time.time()
-        # tx_hash = cls.wait_for_transaction(client, wallet.address, swap_send_time)
+        # tx_hash = cls.wait_for_transaction(balancer, wallet.address, swap_send_time)
         # await client.close()
+        # await cls.write_transaction_data(balancer, wallet.address, is_ton_transfer,
+        #                                  jetton_address, pool_address)
         await balancer.close_all()
         return swap_status
 
 
 if __name__ == "__main__":
-    try:
-        raise ValueError("Insufficient error")
-    except ValueError as e:
-        print(e, type(e))
+    client = asyncio.run(get_lite_balancer())
+    asyncio.run(WalletUtils.wait_for_transaction(client, "UQCMOXxD-f8LSWWbXQowKxqTr3zMY-X1wMTyWp3B-LR6syif"))
     # print(asyncio.run(test()))
     # client: LiteClient = asyncio.run(get_client())
     # print(asyncio.run(client.get_account_state("UQDhOY5FrggXpkbyKPbW76zLfwhfUW7IXrsrOg9gBVUmHGli")))

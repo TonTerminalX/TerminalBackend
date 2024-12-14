@@ -1,18 +1,19 @@
 from concurrent.futures import ThreadPoolExecutor
 
 from asgiref.sync import async_to_sync
+from django.core.cache import cache
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.generics import RetrieveAPIView
+from rest_framework.generics import ListCreateAPIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from core.authenticate import CookieJWTAuthentication
-from terminal_api.models import UserWallets, User, Position
+from terminal_api.models import UserWallets, User, Position, Order
 from terminal_api.serializers import RegisterOrLoginUserSerializer, PositionSerializer, GetUserSerializer, \
-    PairSerializer, MakeSwapSerializer, JettonBalanceSerializer, UserWalletsAddresses
+    PairSerializer, MakeSwapSerializer, JettonBalanceSerializer, UserWalletsAddresses, OrderSerializer
 
 from terminal_api.utils.dexapi import DexScreenerApi
 from terminal_api.utils.geckoapi import GeckoTerminalApi
@@ -158,6 +159,9 @@ class GetPairsChart(APIView):
 
 class GetTrendingPairs(APIView):
     def get(self, request):
+        cached_pairs = cache.get("filtered_pairs")
+        if cached_pairs:
+            return Response(data=cached_pairs)
         pairs = GeckoTerminalApi.get_trending_pairs()
         filtered_pairs = list(
             filter(
@@ -177,6 +181,7 @@ class GetTrendingPairs(APIView):
                 gecko_pair["info"] = {}
 
         # serialized = PairSerializer(pairs, many=True)
+        cache.set("filtered_pairs", filtered_pairs, 60)
         return Response(filtered_pairs)
 
 
@@ -234,7 +239,6 @@ class SwapView(APIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.data
-        print(data)
 
         user = request.user
         wallet = user.wallet
@@ -280,3 +284,28 @@ class GetWalletInfo(APIView):
     def get(self, request):
         serialized_data = self.serializer_class(self.get_queryset()).data
         return Response(data=serialized_data)
+
+
+class CreateGetOrders(ListCreateAPIView):
+    serializer_class = OrderSerializer
+    queryset = Order.objects.filter()
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CookieJWTAuthentication]
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(data={"orders": serializer.data})
+
+    def perform_create(self, serializer):
+        serializer.user = self.request.user
+        serializer.save()
+
+
+class IsUserExists(APIView):
+    def get(self, request, address: str):
+        is_user_exists = User.objects.filter(address=address).exists()
+        return Response(data={"exists": is_user_exists, "address": address})

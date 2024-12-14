@@ -1,6 +1,8 @@
+from pytoniq_core import Address
 from rest_framework import serializers
 
 from terminal_api.models import Position, Order, User, UserWallets
+from terminal_api.utils.address import is_valid_address
 
 
 class RegisterOrLoginUserSerializer(serializers.Serializer):
@@ -12,12 +14,6 @@ class RegisterOrLoginUserSerializer(serializers.Serializer):
 class PositionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Position
-        exclude = ["user"]
-
-
-class OrderSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Order
         exclude = ["user"]
 
 
@@ -34,6 +30,25 @@ class GetUserSerializer(serializers.ModelSerializer):
         model = User
         depth = 1
         fields = ["address", "created_at", "wallet"]
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    created_at = serializers.DateTimeField(read_only=True)
+    filled_at = serializers.DateTimeField(read_only=True)
+
+    def validate(self, attrs):
+        # validate address
+        for address in (attrs["base_token_address"], attrs["quote_token_address"]):
+            if not is_valid_address(address):
+                message = f"Validation address failed."
+                raise serializers.ValidationError(message)
+
+            return super().validate(attrs)
+
+    class Meta:
+        model = Order
+        fields = "__all__"
 
 
 class PairSerializer(serializers.Serializer):

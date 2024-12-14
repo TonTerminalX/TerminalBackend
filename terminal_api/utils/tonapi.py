@@ -22,6 +22,7 @@ class TonCenterApi:
     account_info_endpoint = "/v3/addressInformation"
     jetton_wallets_endpoint = "/v3/jetton/wallets"
     run_get_method_endpoint = "/v3/runGetMethod"
+    get_transactions_endpoint = "/v2/getTransactions"
 
     @classmethod
     def get_account_info(cls, address: str | Address):
@@ -68,6 +69,17 @@ class TonCenterApi:
         response = requests.post(cls.api_url + cls.run_get_method_endpoint, json=body)
         response.raise_for_status()
         return response.json()
+
+    @classmethod
+    def get_transactions(cls, address: str, limit: int):
+        params = {
+            "address": address,
+            "limit": limit,
+        }
+
+        response = requests.get(cls.api_url + cls.get_transactions_endpoint, params=params)
+        response.raise_for_status()
+        return response.json()["result"]
 
 
 if __name__ == "__main__":
