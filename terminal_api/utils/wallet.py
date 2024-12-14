@@ -126,14 +126,16 @@ class WalletUtils(DedustSwapModule):
         if isinstance(jetton_address, str):
             jetton_address = Address(jetton_address)
 
+        # Create DeDust swap params and message
         jetton_asset = Asset.jetton(jetton_address)
         ton = Asset.native()
+        # Get DeDust pool
         pool = await Factory.get_pool(PoolType.VOLATILE, [ton, jetton_asset], client)
         jetton_root: JettonRoot = JettonRoot.create_from_address(jetton_address)  # type: ignore
         jetton_vault = await Factory.get_jetton_vault(jetton_address, client)
         jetton_wallet = await jetton_root.get_wallet(recipient, client)
 
-        # swap_params = SwapParams(deadline=deadline)
+        # Create swap message with DeDust swap function invoke
         swap = jetton_wallet.create_transfer_payload(
             destination=jetton_vault.address,
             amount=amount,
