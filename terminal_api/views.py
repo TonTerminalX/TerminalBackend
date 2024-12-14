@@ -13,7 +13,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from core.authenticate import CookieJWTAuthentication
 from terminal_api.models import UserWallets, User, Position, Order
 from terminal_api.serializers import RegisterOrLoginUserSerializer, PositionSerializer, GetUserSerializer, \
-    PairSerializer, MakeSwapSerializer, JettonBalanceSerializer, UserWalletsAddresses, OrderSerializer
+    PairSerializer, MakeSwapSerializer, JettonBalanceSerializer, UserWalletsAddresses, OrderSerializer, WalletSerializer
 
 from terminal_api.utils.dexapi import DexScreenerApi
 from terminal_api.utils.geckoapi import GeckoTerminalApi
@@ -29,6 +29,7 @@ class RegisterUserView(APIView):
 
         data = serializer.data
         sign, address, message = data["signature"], data["address"], data["message"]
+        address = WalletUtils.to_user_friendly_address(address)
         # public_key = WalletUtils.get_public_key_bytes(address)
 
         # is_verified_signature = WalletUtils.verify_sign(public_key, message, sign)
@@ -85,7 +86,7 @@ class LoginUserView(APIView):
         # is_verified_signature = verify_sign(public_key, message, sign)
         # if not is_verified_signature:
         #     return Response("Failed to verify signed message signature.", status=status.HTTP_400_BAD_REQUEST)
-        WalletUtils.generate_wallet()
+        # WalletUtils.generate_wallet()
 
         try:
             user = User.objects.get(address=address)
@@ -94,7 +95,8 @@ class LoginUserView(APIView):
 
         refresh = RefreshToken.for_user(user)
 
-        response = Response(data={"ok": True}, status=status.HTTP_200_OK)
+        wallet = WalletSerializer(user.wallet)
+        response = Response(data={"ok": True, "wallet": wallet.data}, status=status.HTTP_200_OK)
         response.set_cookie(
             key='access_token',
             value=str(refresh.access_token),
@@ -307,5 +309,6 @@ class CreateGetOrders(ListCreateAPIView):
 
 class IsUserExists(APIView):
     def get(self, request, address: str):
+        address = WalletUtils.to_user_friendly_address(address)
         is_user_exists = User.objects.filter(address=address).exists()
         return Response(data={"exists": is_user_exists, "address": address})

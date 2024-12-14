@@ -47,9 +47,11 @@ class WalletUtils(DedustSwapModule):
         # _, public_key, _ = extract_public_key_from_address
 
     @staticmethod
+    def to_user_friendly_address(address: str):
+        return Address(address).to_str(is_bounceable=False)
+
+    @staticmethod
     async def generate_wallet():
-        # return await WalletV4.create(client, 0, None, version='v4r2')
-        # client = await get_client()
         client = await get_lite_balancer()
         await client.get_masterchain_info()
         mnemonic, new_wallet = await WalletV4R2.create(client)
