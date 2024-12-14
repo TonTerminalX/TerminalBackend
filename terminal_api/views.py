@@ -96,7 +96,7 @@ class LoginUserView(APIView):
         refresh = RefreshToken.for_user(user)
 
         wallet = WalletSerializer(user.wallet)
-        response = Response(data={"ok": True, "wallet": wallet.data}, status=status.HTTP_200_OK)
+        response = Response(data={"ok": True, "wallet": wallet.data.address}, status=status.HTTP_200_OK)
         response.set_cookie(
             key='access_token',
             value=str(refresh.access_token),
