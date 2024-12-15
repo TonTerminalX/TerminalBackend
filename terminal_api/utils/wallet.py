@@ -53,7 +53,6 @@ class WalletUtils(DedustSwapModule):
     @staticmethod
     async def generate_wallet():
         client = await get_lite_balancer()
-        await client.get_masterchain_info()
         mnemonic, new_wallet = await WalletV4R2.create(client)
         private_key = mnemonic_to_private_key(mnemonic)[1]
         await client.close_all()

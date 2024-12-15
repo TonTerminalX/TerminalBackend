@@ -1,7 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 
 from asgiref.sync import async_to_sync
-from django.core.cache import cache
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
@@ -59,7 +58,7 @@ class RegisterUserView(APIView):
         response.set_cookie(
             key='access_token',
             value=str(refresh.access_token),
-            httponly=True,
+            # httponly=True,
             # secure=True,
         )
 
@@ -161,9 +160,9 @@ class GetPairsChart(APIView):
 
 class GetTrendingPairs(APIView):
     def get(self, request):
-        cached_pairs = cache.get("filtered_pairs")
-        if cached_pairs:
-            return Response(data=cached_pairs)
+        # cached_pairs = cache.get("filtered_pairs")
+        # if cached_pairs:
+        #     return Response(data=cached_pairs)
         pairs = GeckoTerminalApi.get_trending_pairs()
         filtered_pairs = list(
             filter(
@@ -183,7 +182,7 @@ class GetTrendingPairs(APIView):
                 gecko_pair["info"] = {}
 
         # serialized = PairSerializer(pairs, many=True)
-        cache.set("filtered_pairs", filtered_pairs, 60)
+        # cache.set("filtered_pairs", filtered_pairs, 60)
         return Response(filtered_pairs)
 
 
