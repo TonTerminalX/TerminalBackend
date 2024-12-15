@@ -1,3 +1,4 @@
+import tracemalloc
 from concurrent.futures import ThreadPoolExecutor
 
 from asgiref.sync import async_to_sync
@@ -45,7 +46,26 @@ class RegisterUserView(APIView):
         if is_user_exists:
             return Response({"detail": "Already registered"}, status=status.HTTP_409_CONFLICT)
 
+        current, peak = tracemalloc.get_traced_memory()
+        print(f"Current memory usage: {current / 1024 / 1024:.1f} MB")
+        print(f"Peak memory usage: {peak / 1024 / 1024:.1f} MB")
+
+        tracemalloc.start()
+        start_snapshot = tracemalloc.take_snapshot()
         _, new_address, new_private_key, new_public_key, new_mnemonic = async_to_sync(WalletUtils.generate_wallet)()
+        snapshot = tracemalloc.take_snapshot()
+        stats = snapshot.compare_to(start_snapshot, 'lineno')
+        print("[ Top memory-consuming lines ]")
+        for stat in stats[:10]:
+            print(stat)
+
+        current, peak = tracemalloc.get_traced_memory()
+        print(f"Current memory usage: {current / 1024 / 1024:.1f} MB")
+        print(f"Peak memory usage: {peak / 1024 / 1024:.1f} MB")
+
+        tracemalloc.stop()
+
+
         new_wallet = UserWallets(address=new_address, private_key=new_private_key, mnemonic=new_mnemonic,
                                  public_key=new_public_key)
         new_wallet.save()

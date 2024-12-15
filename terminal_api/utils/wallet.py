@@ -1,10 +1,12 @@
 import asyncio
 import time
+import typing
 
 from dedust import SwapParams, VaultNative, Asset, Factory, PoolType, JettonRoot, VaultJetton
-from pytoniq import WalletV4R2, LiteClient, LiteBalancer
-from pytoniq_core import Cell, begin_cell, Address
-from pytoniq_core.crypto.keys import mnemonic_to_private_key, private_key_to_public_key
+from pytoniq import WalletV4R2, LiteClient, LiteBalancer, LiteClientLike
+from pytoniq.contract.wallets.wallet import WALLET_V4_R2_CODE
+from pytoniq_core import Cell, begin_cell, Address, StateInit
+from pytoniq_core.crypto.keys import mnemonic_to_private_key, private_key_to_public_key, mnemonic_new, mnemonic_is_valid
 from pytoniq_core.crypto.signature import sign_message, verify_sign
 
 from terminal_api.models import User, Transaction
@@ -21,10 +23,72 @@ def from_nano(amount: float | int):
     return amount / 10 ** 9
 
 
+client = asyncio.run(get_lite_balancer())
+asyncio.run(client.start_up())
+
+
+class CustomWallet(WalletV4R2):
+
+    @classmethod
+    async def from_address(cls, provider: LiteClientLike, address: typing.Union[str, Address], **kwargs):
+        if isinstance(address, str):
+            address = Address(address)
+        # account, shard_account = await provider.raw_get_account_state(address)
+        account, shard_account = None, None
+        return cls(provider=provider, address=address, account=account, shard_account=shard_account, **kwargs)
+
+    @classmethod
+    async def from_state_init(cls, provider: LiteClientLike, workchain: int, state_init: StateInit, **kwargs):
+        address = Address((workchain, state_init.serialize().hash))
+        return await cls.from_address(provider=provider, address=address, state_init=state_init, **kwargs)
+
+    @classmethod
+    async def from_data(cls, provider: LiteClientLike, public_key: bytes, wc: int = 0,
+                        wallet_id: typing.Optional[int] = None, **kwargs):
+        return await super().from_code_and_data(provider=provider, code=WALLET_V4_R2_CODE, public_key=public_key, wc=wc,
+                                                wallet_id=wallet_id, **kwargs)
+
+    @classmethod
+    async def from_private_key(cls, provider: LiteClientLike, private_key: bytes, wc: int = 0,
+                               wallet_id: typing.Optional[int] = None, version: str = 'v3r2'):
+        public_key = private_key_to_public_key(private_key)
+        return await cls.from_data(provider=provider, wc=wc, public_key=public_key, wallet_id=wallet_id,
+                                          private_key=private_key)
+
+    @classmethod
+    async def from_mnemonic(cls, provider: LiteClientLike, mnemonics: typing.Union[list, str], wc: int = 0,
+                            wallet_id: typing.Optional[int] = None, version: str = 'v3r2'):
+        version = cls.VERSION or version
+        if isinstance(mnemonics, str):
+            mnemonics = mnemonics.split()
+        assert mnemonic_is_valid(mnemonics), 'mnemonics are invalid!'
+        _, private_key = mnemonic_to_private_key(mnemonics)
+        return await cls.from_private_key(provider, private_key, wc, wallet_id, version)
+
+    @classmethod
+    async def create(cls, provider: LiteClientLike, wc: int = 0, wallet_id: typing.Optional[int] = None,
+                     version: str = 'v3r2'):
+        """
+        :param provider: provider
+        :param wc: wallet workchain
+        :param wallet_id: subwallet_id
+        :param version: wallet version
+        :return: mnemonics and Wallet instance of provided version
+        """
+        version = cls.VERSION or version
+        mnemo = mnemonic_new(24)
+        return mnemo, await cls.from_mnemonic(provider, mnemo, wc, wallet_id, version)
+
+
 class WalletUtils(DedustSwapModule):
     JETTON_TRANSFER_SELECTOR = 260734629
     TON_TOKEN_ADDRESS = "ton_EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"
     DEFAULT_GAS = 0.25
+
+    # client = asyncio.run(get_lite_balancer())
+    # asyncio.run(client.start_up())
+    # print(client.inited)
+    # print(asyncio.run(client.get_account_state("UQCMOXxD-f8LSWWbXQowKxqTr3zMY-X1wMTyWp3B-LR6syif")))
 
     @staticmethod
     def get_public_key_bytes(address: str):
@@ -50,12 +114,10 @@ class WalletUtils(DedustSwapModule):
     def to_user_friendly_address(address: str):
         return Address(address).to_str(is_bounceable=False)
 
-    @staticmethod
-    async def generate_wallet():
-        client = await get_lite_balancer()
-        mnemonic, new_wallet = await WalletV4R2.create(client)
+    @classmethod
+    async def generate_wallet(cls):
+        mnemonic, new_wallet = await CustomWallet.create(client)
         private_key = mnemonic_to_private_key(mnemonic)[1]
-        await client.close_all()
 
         address = new_wallet.address.to_str(is_user_friendly=True, is_bounceable=False)
         return new_wallet, address, private_key.hex(), private_key_to_public_key(private_key).hex(), " ".join(mnemonic)
