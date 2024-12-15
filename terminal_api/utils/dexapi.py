@@ -11,16 +11,22 @@ class DexScreenerApi:
 
     @classmethod
     def search_for_pairs(cls, search):
-        response = requests.get(cls.dexscreener_api + cls.search_pairs_endpoint, params={
-            "q": search,
-        })
+        response = requests.get(
+            cls.dexscreener_api + cls.search_pairs_endpoint,
+            params={
+                "q": search,
+            },
+        )
         response.raise_for_status()
 
         return response.json()["pairs"]
 
     @classmethod
     def get_pair(cls, pair_address):
-        response = requests.get(cls.dexscreener_api + cls.get_pair_endpoint.format(chain="ton", pair=pair_address))
+        response = requests.get(
+            cls.dexscreener_api
+            + cls.get_pair_endpoint.format(chain="ton", pair=pair_address)
+        )
         response.raise_for_status()
 
         pairs = response.json()["pairs"]

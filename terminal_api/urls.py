@@ -1,4 +1,5 @@
 from django.urls import path
+
 from . import views
 
 urlpatterns = [
@@ -15,6 +16,9 @@ urlpatterns = [
     path("wallets/swap/", views.SwapView.as_view()),
     path("wallets/", views.GetWalletInfo.as_view()),
     path("wallets/<str:address>/", views.GetAddressInformation.as_view()),
-    path("wallets/<str:address>/jettons/<str:jetton_address>/", views.GetJettonBalance.as_view()),
+    path(
+        "wallets/<str:address>/jettons/<str:jetton_address>/",
+        views.GetJettonBalance.as_view(),
+    ),
     # path("wallets/", views.RegisterGetUserView.as_view()),
 ]

@@ -1,7 +1,7 @@
 from pytoniq_core import Address
 from rest_framework import serializers
 
-from terminal_api.models import Position, Order, User, UserWallets
+from terminal_api.models import Order, Position, User, UserWallets
 from terminal_api.utils.address import is_valid_address
 
 
@@ -52,26 +52,27 @@ class OrderSerializer(serializers.ModelSerializer):
 
 
 class PairSerializer(serializers.Serializer):
-    chain_id = serializers.CharField(source='chainId')
-    dex_id = serializers.CharField(source='dexId')
+    chain_id = serializers.CharField(source="chainId")
+    dex_id = serializers.CharField(source="dexId")
     url = serializers.CharField()
-    pair_address = serializers.CharField(source='pairAddress')
-    base_token = serializers.JSONField(source='baseToken')
-    quote_token = serializers.JSONField(source='quoteToken')
-    price_native = serializers.FloatField(source='priceNative')
-    price_usd = serializers.FloatField(source='priceUsd')
+    pair_address = serializers.CharField(source="pairAddress")
+    base_token = serializers.JSONField(source="baseToken")
+    quote_token = serializers.JSONField(source="quoteToken")
+    price_native = serializers.FloatField(source="priceNative")
+    price_usd = serializers.FloatField(source="priceUsd")
     txns = serializers.JSONField()
     volume = serializers.JSONField()
-    price_change = serializers.JSONField(source='priceChange')
+    price_change = serializers.JSONField(source="priceChange")
     liquidity = serializers.JSONField()
     fdv = serializers.IntegerField(min_value=0)
-    market_cap = serializers.IntegerField(source='marketCap', min_value=0)
-    pair_created_at = serializers.IntegerField(source='pairCreatedAt', min_value=0, allow_null=True, required=False)
+    market_cap = serializers.IntegerField(source="marketCap", min_value=0)
+    pair_created_at = serializers.IntegerField(
+        source="pairCreatedAt", min_value=0, allow_null=True, required=False
+    )
     info = serializers.JSONField(allow_null=True, default=None, required=False)
 
 
-class PairDetailedInfoSerializer(serializers.Serializer):
-    ...
+class PairDetailedInfoSerializer(serializers.Serializer): ...
 
 
 class MakeSwapSerializer(serializers.Serializer):

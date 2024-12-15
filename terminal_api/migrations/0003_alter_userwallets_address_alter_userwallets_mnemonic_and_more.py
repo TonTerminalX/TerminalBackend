@@ -6,28 +6,28 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('terminal_api', '0002_user_is_active_alter_user_address_and_more'),
+        ("terminal_api", "0002_user_is_active_alter_user_address_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='userwallets',
-            name='address',
+            model_name="userwallets",
+            name="address",
             field=models.CharField(max_length=48),
         ),
         migrations.AlterField(
-            model_name='userwallets',
-            name='mnemonic',
+            model_name="userwallets",
+            name="mnemonic",
             field=models.CharField(max_length=220),
         ),
         migrations.AlterField(
-            model_name='userwallets',
-            name='private_key',
+            model_name="userwallets",
+            name="private_key",
             field=models.CharField(max_length=128),
         ),
         migrations.AlterField(
-            model_name='userwallets',
-            name='public_key',
+            model_name="userwallets",
+            name="public_key",
             field=models.CharField(max_length=64),
         ),
     ]

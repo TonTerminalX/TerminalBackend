@@ -1,12 +1,13 @@
 import asyncio
-from pytoniq import LiteClient, LiteBalancer
+
+from pytoniq import LiteBalancer, LiteClient
 
 
 async def get_client():
     client: LiteClient = LiteClient.from_mainnet_config(
         ls_i=0,
         # trust_level=2,
-        timeout=20
+        timeout=20,
     )
     await client.connect()
     return client

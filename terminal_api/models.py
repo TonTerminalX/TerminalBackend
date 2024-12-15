@@ -16,7 +16,9 @@ class User(models.Model):
     is_active = models.BooleanField(default=True)
 
     address = models.CharField(max_length=200, unique=True)
-    wallet = models.ForeignKey(UserWallets, on_delete=models.CASCADE, related_name="user")
+    wallet = models.ForeignKey(
+        UserWallets, on_delete=models.CASCADE, related_name="user"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -32,7 +34,9 @@ class User(models.Model):
 
 class Transaction(models.Model):
     tx_hash = models.CharField()
-    tx_timestamp = models.TimeField(null=True, )
+    tx_timestamp = models.TimeField(
+        null=True,
+    )
     from_address = models.CharField()
     amount = models.FloatField()
     type_of_transaction = models.CharField()

@@ -1,20 +1,27 @@
-import tracemalloc
 from concurrent.futures import ThreadPoolExecutor
 
 from asgiref.sync import async_to_sync
 from rest_framework import status
+from rest_framework.generics import ListCreateAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.generics import ListCreateAPIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from core.authenticate import CookieJWTAuthentication
-from terminal_api.models import UserWallets, User, Position, Order
-from terminal_api.serializers import RegisterOrLoginUserSerializer, PositionSerializer, GetUserSerializer, \
-    PairSerializer, MakeSwapSerializer, JettonBalanceSerializer, UserWalletsAddresses, OrderSerializer, WalletSerializer
-
+from terminal_api.models import Order, Position, User, UserWallets
+from terminal_api.serializers import (
+    GetUserSerializer,
+    JettonBalanceSerializer,
+    MakeSwapSerializer,
+    OrderSerializer,
+    PairSerializer,
+    PositionSerializer,
+    RegisterOrLoginUserSerializer,
+    UserWalletsAddresses,
+    WalletSerializer,
+)
 from terminal_api.utils.dexapi import DexScreenerApi
 from terminal_api.utils.geckoapi import GeckoTerminalApi
 from terminal_api.utils.tonapi import TonCenterApi
@@ -44,39 +51,34 @@ class RegisterUserView(APIView):
 
         is_user_exists = User.objects.filter(address=address).exists()
         if is_user_exists:
-            return Response({"detail": "Already registered"}, status=status.HTTP_409_CONFLICT)
+            return Response(
+                {"detail": "Already registered"}, status=status.HTTP_409_CONFLICT
+            )
 
-        current, peak = tracemalloc.get_traced_memory()
-        print(f"Current memory usage: {current / 1024 / 1024:.1f} MB")
-        print(f"Peak memory usage: {peak / 1024 / 1024:.1f} MB")
-
-        tracemalloc.start()
-        start_snapshot = tracemalloc.take_snapshot()
-        _, new_address, new_private_key, new_public_key, new_mnemonic = async_to_sync(WalletUtils.generate_wallet)()
-        snapshot = tracemalloc.take_snapshot()
-        stats = snapshot.compare_to(start_snapshot, 'lineno')
-        print("[ Top memory-consuming lines ]")
-        for stat in stats[:10]:
-            print(stat)
-
-        current, peak = tracemalloc.get_traced_memory()
-        print(f"Current memory usage: {current / 1024 / 1024:.1f} MB")
-        print(f"Peak memory usage: {peak / 1024 / 1024:.1f} MB")
-
-        tracemalloc.stop()
-
-
-        new_wallet = UserWallets(address=new_address, private_key=new_private_key, mnemonic=new_mnemonic,
-                                 public_key=new_public_key)
+        _, new_address, new_private_key, new_public_key, new_mnemonic = async_to_sync(
+            WalletUtils.generate_wallet
+        )()
+        new_wallet = UserWallets(
+            address=new_address,
+            private_key=new_private_key,
+            mnemonic=new_mnemonic,
+            public_key=new_public_key,
+        )
         new_wallet.save()
 
         user = User(address=address, wallet=new_wallet)
         user.save()
         refresh = RefreshToken.for_user(user)
 
-        response = Response(data={"address": new_address, "mnemonic": new_mnemonic, "public_key": new_public_key})
+        response = Response(
+            data={
+                "address": new_address,
+                "mnemonic": new_mnemonic,
+                "public_key": new_public_key,
+            }
+        )
         response.set_cookie(
-            key='access_token',
+            key="access_token",
             value=str(refresh.access_token),
             # httponly=True,
             # secure=True,
@@ -90,7 +92,9 @@ class UserMeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response(GetUserSerializer(request.user, context={'request': request}).data)
+        return Response(
+            GetUserSerializer(request.user, context={"request": request}).data
+        )
 
 
 class LoginUserView(APIView):
@@ -110,14 +114,20 @@ class LoginUserView(APIView):
         try:
             user = User.objects.get(address=address)
         except User.DoesNotExist:
-            return Response({"detail": "User with this credentials not found"}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"detail": "User with this credentials not found"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
         refresh = RefreshToken.for_user(user)
 
         wallet = WalletSerializer(user.wallet)
-        response = Response(data={"ok": True, "wallet": wallet.data['address']}, status=status.HTTP_200_OK)
+        response = Response(
+            data={"ok": True, "wallet": wallet.data["address"]},
+            status=status.HTTP_200_OK,
+        )
         response.set_cookie(
-            key='access_token',
+            key="access_token",
             value=str(refresh.access_token),
             # httponly=True,
             # secure=True,
@@ -127,7 +137,7 @@ class LoginUserView(APIView):
 
 class GetPairsPagination(PageNumberPagination):
     page_size = 10
-    page_size_query_param = 'page_size'
+    page_size_query_param = "page_size"
     max_page_size = 100
 
 
@@ -140,7 +150,8 @@ class GetSearchPairs(APIView):
 
         pairs = DexScreenerApi.search_for_pairs(search_param)
         return [
-            pair for pair in pairs
+            pair
+            for pair in pairs
             if pair["chainId"] == "ton" and pair["dexId"] == "dedust"
         ]
 
@@ -148,7 +159,7 @@ class GetSearchPairs(APIView):
         if not request.query_params.get("search"):
             return Response(
                 {"detail": "search param is not defined"},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         pagination = self.pagination_class()
@@ -186,13 +197,24 @@ class GetTrendingPairs(APIView):
         pairs = GeckoTerminalApi.get_trending_pairs()
         filtered_pairs = list(
             filter(
-                lambda x: x["relationships"]["quote_token"]["data"]["id"] == WalletUtils.TON_TOKEN_ADDRESS,
-                pairs
+                lambda x: x["relationships"]["quote_token"]["data"]["id"]
+                == WalletUtils.TON_TOKEN_ADDRESS,
+                pairs,
             )
         )
         with ThreadPoolExecutor(max_workers=10) as executor:
-            pair_addresses = list(map(lambda x: x["attributes"]["address"], filtered_pairs))
-            dexscreener_pairs = list(executor.map(DexScreenerApi.get_pair, pair_addresses))
+            pair_addresses = list(
+                map(lambda pair: pair["attributes"]["address"], filtered_pairs)
+            )
+            pair_addresses = list(
+                filter(
+                    lambda pair: pair["relationships"]["dex"]["data"]["id"] == "dedust",
+                    pair_addresses,
+                )
+            )
+            dexscreener_pairs = list(
+                executor.map(DexScreenerApi.get_pair, pair_addresses)
+            )
             # dexscreener_pairs = list(filter(lambda x: x, dexscreener_pairs))
 
         for dex_pair, gecko_pair in zip(dexscreener_pairs, filtered_pairs):
@@ -264,12 +286,14 @@ class SwapView(APIView):
         user = request.user
         wallet = user.wallet
         try:
-            swap_tx = async_to_sync(WalletUtils.make_swap)(pool_address=data.get("pair_address"),
-                                                           jetton_address=data.get("jetton_address"),
-                                                           is_ton_transfer=data.get("is_ton_transfer"),
-                                                           amount=data.get("amount"),
-                                                           slippage=data.get("slippage"),
-                                                           mnemonic=wallet.mnemonic)
+            swap_tx = async_to_sync(WalletUtils.make_swap)(
+                pool_address=data.get("pair_address"),
+                jetton_address=data.get("jetton_address"),
+                is_ton_transfer=data.get("is_ton_transfer"),
+                amount=data.get("amount"),
+                slippage=data.get("slippage"),
+                mnemonic=wallet.mnemonic,
+            )
             swap_tx = "success" if swap_tx == 1 else swap_tx
         except ValueError as e:
             print(e, type(e))
@@ -278,8 +302,10 @@ class SwapView(APIView):
             if text_error == "Insufficient balance":
                 detail = "Wallet balance insufficient"
             elif text_error == "Min amount":
-                detail = (f"Minimal amount is {WalletUtils.DEFAULT_GAS} TON. Ensure that amount and balance at least "
-                          f"{WalletUtils.DEFAULT_GAS} TON")
+                detail = (
+                    f"Minimal amount is {WalletUtils.DEFAULT_GAS} TON. Ensure that amount and balance at least "
+                    f"{WalletUtils.DEFAULT_GAS} TON"
+                )
 
             return Response(data={"detail": detail})
 
@@ -291,7 +317,13 @@ class GetJettonBalance(APIView):
 
     def get(self, request, address, jetton_address):
         jetton_balance = TonCenterApi.get_jetton_balance(address, jetton_address)
-        return Response(data={"balance": jetton_balance, "address": address, "jetton": jetton_address})
+        return Response(
+            data={
+                "balance": jetton_balance,
+                "address": address,
+                "jetton": jetton_address,
+            }
+        )
 
 
 class GetWalletInfo(APIView):

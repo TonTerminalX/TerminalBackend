@@ -2,25 +2,38 @@ import asyncio
 import time
 import typing
 
-from dedust import SwapParams, VaultNative, Asset, Factory, PoolType, JettonRoot, VaultJetton
-from pytoniq import WalletV4R2, LiteClient, LiteBalancer, LiteClientLike
+from dedust import (
+    Asset,
+    Factory,
+    JettonRoot,
+    PoolType,
+    SwapParams,
+    VaultJetton,
+    VaultNative,
+)
+from pytoniq import LiteBalancer, LiteClient, LiteClientLike, WalletV4R2
 from pytoniq.contract.wallets.wallet import WALLET_V4_R2_CODE
-from pytoniq_core import Cell, begin_cell, Address, StateInit
-from pytoniq_core.crypto.keys import mnemonic_to_private_key, private_key_to_public_key, mnemonic_new, mnemonic_is_valid
+from pytoniq_core import Address, Cell, StateInit, begin_cell
+from pytoniq_core.crypto.keys import (
+    mnemonic_is_valid,
+    mnemonic_new,
+    mnemonic_to_private_key,
+    private_key_to_public_key,
+)
 from pytoniq_core.crypto.signature import sign_message, verify_sign
 
-from terminal_api.models import User, Transaction
+from terminal_api.models import Transaction, User
 from terminal_api.utils.client import get_client, get_lite_balancer
 from terminal_api.utils.swap import DedustSwapModule
 from terminal_api.utils.tonapi import TonCenterApi
 
 
 def to_nano(amount: float | int):
-    return int(amount * 10 ** 9)
+    return int(amount * 10**9)
 
 
 def from_nano(amount: float | int):
-    return amount / 10 ** 9
+    return amount / 10**9
 
 
 client = asyncio.run(get_lite_balancer())
@@ -30,44 +43,90 @@ asyncio.run(client.start_up())
 class CustomWallet(WalletV4R2):
 
     @classmethod
-    async def from_address(cls, provider: LiteClientLike, address: typing.Union[str, Address], **kwargs):
+    async def from_address(
+        cls, provider: LiteClientLike, address: typing.Union[str, Address], **kwargs
+    ):
         if isinstance(address, str):
             address = Address(address)
         # account, shard_account = await provider.raw_get_account_state(address)
         account, shard_account = None, None
-        return cls(provider=provider, address=address, account=account, shard_account=shard_account, **kwargs)
+        return cls(
+            provider=provider,
+            address=address,
+            account=account,
+            shard_account=shard_account,
+            **kwargs,
+        )
 
     @classmethod
-    async def from_state_init(cls, provider: LiteClientLike, workchain: int, state_init: StateInit, **kwargs):
+    async def from_state_init(
+        cls, provider: LiteClientLike, workchain: int, state_init: StateInit, **kwargs
+    ):
         address = Address((workchain, state_init.serialize().hash))
-        return await cls.from_address(provider=provider, address=address, state_init=state_init, **kwargs)
+        return await cls.from_address(
+            provider=provider, address=address, state_init=state_init, **kwargs
+        )
 
     @classmethod
-    async def from_data(cls, provider: LiteClientLike, public_key: bytes, wc: int = 0,
-                        wallet_id: typing.Optional[int] = None, **kwargs):
-        return await super().from_code_and_data(provider=provider, code=WALLET_V4_R2_CODE, public_key=public_key, wc=wc,
-                                                wallet_id=wallet_id, **kwargs)
+    async def from_data(
+        cls,
+        provider: LiteClientLike,
+        public_key: bytes,
+        wc: int = 0,
+        wallet_id: typing.Optional[int] = None,
+        **kwargs,
+    ):
+        return await super().from_code_and_data(
+            provider=provider,
+            code=WALLET_V4_R2_CODE,
+            public_key=public_key,
+            wc=wc,
+            wallet_id=wallet_id,
+            **kwargs,
+        )
 
     @classmethod
-    async def from_private_key(cls, provider: LiteClientLike, private_key: bytes, wc: int = 0,
-                               wallet_id: typing.Optional[int] = None, version: str = 'v3r2'):
+    async def from_private_key(
+        cls,
+        provider: LiteClientLike,
+        private_key: bytes,
+        wc: int = 0,
+        wallet_id: typing.Optional[int] = None,
+        version: str = "v3r2",
+    ):
         public_key = private_key_to_public_key(private_key)
-        return await cls.from_data(provider=provider, wc=wc, public_key=public_key, wallet_id=wallet_id,
-                                          private_key=private_key)
+        return await cls.from_data(
+            provider=provider,
+            wc=wc,
+            public_key=public_key,
+            wallet_id=wallet_id,
+            private_key=private_key,
+        )
 
     @classmethod
-    async def from_mnemonic(cls, provider: LiteClientLike, mnemonics: typing.Union[list, str], wc: int = 0,
-                            wallet_id: typing.Optional[int] = None, version: str = 'v3r2'):
+    async def from_mnemonic(
+        cls,
+        provider: LiteClientLike,
+        mnemonics: typing.Union[list, str],
+        wc: int = 0,
+        wallet_id: typing.Optional[int] = None,
+        version: str = "v3r2",
+    ):
         version = cls.VERSION or version
         if isinstance(mnemonics, str):
             mnemonics = mnemonics.split()
-        assert mnemonic_is_valid(mnemonics), 'mnemonics are invalid!'
+        assert mnemonic_is_valid(mnemonics), "mnemonics are invalid!"
         _, private_key = mnemonic_to_private_key(mnemonics)
         return await cls.from_private_key(provider, private_key, wc, wallet_id, version)
 
     @classmethod
-    async def create(cls, provider: LiteClientLike, wc: int = 0, wallet_id: typing.Optional[int] = None,
-                     version: str = 'v3r2'):
+    async def create(
+        cls,
+        provider: LiteClientLike,
+        wc: int = 0,
+        wallet_id: typing.Optional[int] = None,
+        version: str = "v3r2",
+    ):
         """
         :param provider: provider
         :param wc: wallet workchain
@@ -120,7 +179,13 @@ class WalletUtils(DedustSwapModule):
         private_key = mnemonic_to_private_key(mnemonic)[1]
 
         address = new_wallet.address.to_str(is_user_friendly=True, is_bounceable=False)
-        return new_wallet, address, private_key.hex(), private_key_to_public_key(private_key).hex(), " ".join(mnemonic)
+        return (
+            new_wallet,
+            address,
+            private_key.hex(),
+            private_key_to_public_key(private_key).hex(),
+            " ".join(mnemonic),
+        )
 
     @staticmethod
     async def sign_message(message: str, private_key: str):
@@ -137,8 +202,13 @@ class WalletUtils(DedustSwapModule):
         return verify_sign(public_key, message[2:].encode(), sign[2:].encode())
 
     @classmethod
-    async def get_jetton_swap_params(cls, amount: int, jetton_address: str, recipient: str | Address,
-                                     client: LiteBalancer):
+    async def get_jetton_swap_params(
+        cls,
+        amount: int,
+        jetton_address: str,
+        recipient: str | Address,
+        client: LiteBalancer,
+    ):
         # query_id = 0  # idk what is this
         # # swap_id = 3926267997
         # deadline = 0
@@ -204,7 +274,7 @@ class WalletUtils(DedustSwapModule):
             amount=amount,
             response_address=recipient,
             forward_amount=to_nano(cls.DEFAULT_GAS),
-            forward_payload=VaultJetton.create_swap_payload(pool_address=pool.address)
+            forward_payload=VaultJetton.create_swap_payload(pool_address=pool.address),
         )
         return swap, jetton_wallet.address
 
@@ -242,12 +312,18 @@ class WalletUtils(DedustSwapModule):
         # return native_vault_payload
 
         swap_params = SwapParams(deadline=deadline, recipient_address=recipient)
-        swap = VaultNative.create_swap_payload(amount=amount, pool_address=pool_address, swap_params=swap_params)
+        swap = VaultNative.create_swap_payload(
+            amount=amount, pool_address=pool_address, swap_params=swap_params
+        )
         return swap
 
     @classmethod
-    async def get_jetton_address(cls, client: LiteBalancer | LiteClient, address: str | Address,
-                                 jetton_address: str | Address):
+    async def get_jetton_address(
+        cls,
+        client: LiteBalancer | LiteClient,
+        address: str | Address,
+        jetton_address: str | Address,
+    ):
         if isinstance(address, str):
             address = Address(address)
         if isinstance(jetton_address, str):
@@ -255,23 +331,23 @@ class WalletUtils(DedustSwapModule):
 
         print(address, jetton_address)
         _stack = begin_cell().store_address(address).end_cell().begin_parse()
-        jetton_wallet_address = await client.run_get_method(address=jetton_address, method="get_wallet_address",
-                                                            stack=[_stack])
+        jetton_wallet_address = await client.run_get_method(
+            address=jetton_address, method="get_wallet_address", stack=[_stack]
+        )
         jetton_wallet_address = jetton_wallet_address[0].load_address()
         return jetton_wallet_address
 
     @classmethod
     async def activate_wallet(cls, wallet: WalletV4R2):
         tx_hash = wallet.transfer(
-            destination=wallet.address,
-            amount=0,
-            state_init=None,
-            body=Cell.empty()
+            destination=wallet.address, amount=0, state_init=None, body=Cell.empty()
         )
         return
 
     @classmethod
-    async def wait_for_transaction(cls, client: LiteClient, address: str | Address, swap_send_time: float = None):
+    async def wait_for_transaction(
+        cls, client: LiteClient, address: str | Address, swap_send_time: float = None
+    ):
         if isinstance(address, Address):
             address = address.to_str()
 
@@ -293,8 +369,14 @@ class WalletUtils(DedustSwapModule):
         return current_tx_hash
 
     @classmethod
-    async def write_transaction_data(cls, client: LiteBalancer, address: str, is_ton_transfer: bool,
-                                     jetton_address: str, pool_address: str):
+    async def write_transaction_data(
+        cls,
+        client: LiteBalancer,
+        address: str,
+        is_ton_transfer: bool,
+        jetton_address: str,
+        pool_address: str,
+    ):
         swap_send_time = time.time()
         user = User.find_user_by_wallet(address)
         tx_hash = cls.wait_for_transaction(client, address, swap_send_time)
@@ -304,8 +386,15 @@ class WalletUtils(DedustSwapModule):
         transaction = Transaction(tx_hash=tx_hash)
 
     @classmethod
-    async def make_swap(cls, pool_address: str, jetton_address: str | None, is_ton_transfer: bool,
-                        amount: float, mnemonic: str, slippage: int):
+    async def make_swap(
+        cls,
+        pool_address: str,
+        jetton_address: str | None,
+        is_ton_transfer: bool,
+        amount: float,
+        mnemonic: str,
+        slippage: int,
+    ):
         # client = await get_client()
         balancer = await get_lite_balancer()
         # client = LiteClient.from_mainnet_config(timeout=20, ls_i=0)
@@ -322,12 +411,15 @@ class WalletUtils(DedustSwapModule):
         pool_address = Address(pool_address).to_str(is_bounceable=True)
         if is_ton_transfer:
             ton_amount = amount
-            swap_payload = cls.get_ton_swap_params(to_nano(ton_amount), pool_address, wallet.address)
+            swap_payload = cls.get_ton_swap_params(
+                to_nano(ton_amount), pool_address, wallet.address
+            )
             dest_address = cls.NATIVE_VAULT_ADDRESS
         else:
             ton_amount = min_amount
-            swap_payload, jetton_wallet = await cls.get_jetton_swap_params(to_nano(amount), jetton_address,
-                                                                           wallet.address, balancer)
+            swap_payload, jetton_wallet = await cls.get_jetton_swap_params(
+                to_nano(amount), jetton_address, wallet.address, balancer
+            )
             dest_address = Address(jetton_wallet.to_str())
 
         if min(wallet_balance, ton_amount) < min_amount:
@@ -337,13 +429,19 @@ class WalletUtils(DedustSwapModule):
 
         dest_address = Address(dest_address)
         swap_message = wallet.create_wallet_internal_message(
-            destination=dest_address, value=to_nano(ton_amount), body=swap_payload, state_init=None
+            destination=dest_address,
+            value=to_nano(ton_amount),
+            body=swap_payload,
+            state_init=None,
         )
         msgs = [swap_message]
 
         if (fee_amount := int(to_nano(ton_amount) * cls.SWAP_FEE)) > 1:
             fee_message = wallet.create_wallet_internal_message(
-                destination=cls.SWAP_FEE_RECIPIENT, value=fee_amount, body=Cell.empty(), state_init=None
+                destination=cls.SWAP_FEE_RECIPIENT,
+                value=fee_amount,
+                body=Cell.empty(),
+                state_init=None,
             )
             msgs.append(fee_message)
 
@@ -362,7 +460,11 @@ class WalletUtils(DedustSwapModule):
 
 if __name__ == "__main__":
     client = asyncio.run(get_lite_balancer())
-    asyncio.run(WalletUtils.wait_for_transaction(client, "UQCMOXxD-f8LSWWbXQowKxqTr3zMY-X1wMTyWp3B-LR6syif"))
+    asyncio.run(
+        WalletUtils.wait_for_transaction(
+            client, "UQCMOXxD-f8LSWWbXQowKxqTr3zMY-X1wMTyWp3B-LR6syif"
+        )
+    )
     # print(asyncio.run(test()))
     # client: LiteClient = asyncio.run(get_client())
     # print(asyncio.run(client.get_account_state("UQDhOY5FrggXpkbyKPbW76zLfwhfUW7IXrsrOg9gBVUmHGli")))

@@ -1,25 +1,25 @@
 import datetime
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from mplfinance.original_flavor import candlestick_ohlc
 
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
 import requests
+from mplfinance.original_flavor import candlestick_ohlc
 
 
 def merge_pairs_info(response: dict):
     merged_info = dict()
-    for pair in response['data']:
-        merged_info[pair['relationships']['base_token']['data']['id']] = pair
+    for pair in response["data"]:
+        merged_info[pair["relationships"]["base_token"]["data"]["id"]] = pair
 
     included = {}
-    for pair in response['included']:
+    for pair in response["included"]:
         included[pair["id"]] = pair
 
     for token_id in included.keys():
         if token_id in merged_info:
-            merged_info[token_id]['attributes'] = {
-                **included[token_id]['attributes'],
-                **merged_info[token_id]['attributes']
+            merged_info[token_id]["attributes"] = {
+                **included[token_id]["attributes"],
+                **merged_info[token_id]["attributes"],
             }
 
     return list(merged_info.values())
@@ -30,14 +30,16 @@ class GeckoTerminalApi:
     get_ohlcv_data_endpoint = "/networks/{network}/pools/{pool}/ohlcv/day"
     get_trending_pairs_endpoint = "/networks/{network}/trending_pools?include=base_token%2Cquote_token%2Cdex&page=1"
 
-    headers = {
-        "Accept": "application/json;version=20230302"
-    }
+    headers = {"Accept": "application/json;version=20230302"}
 
     @classmethod
     def get_ohlcv_data(cls, pool_address: str):
-        formater_endpoint = cls.get_ohlcv_data_endpoint.format(network="ton", pool=pool_address)
-        response = requests.get(cls.api_url + formater_endpoint, headers=cls.headers, timeout=(10, 10))
+        formater_endpoint = cls.get_ohlcv_data_endpoint.format(
+            network="ton", pool=pool_address
+        )
+        response = requests.get(
+            cls.api_url + formater_endpoint, headers=cls.headers, timeout=(10, 10)
+        )
         response.raise_for_status()
         return response.json()["data"]["attributes"]["ohlcv_list"]
 

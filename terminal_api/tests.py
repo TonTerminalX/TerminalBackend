@@ -1,11 +1,11 @@
 import asyncio
 import time
 
+from django.test import TestCase
 from pytoniq_core.crypto.signature import sign_message
 
 from terminal_api.utils.client import get_lite_balancer
 from terminal_api.utils.wallet import WalletUtils
-from django.test import TestCase
 
 
 class WalletTestCase(TestCase):
@@ -20,4 +20,6 @@ class WalletTestCase(TestCase):
 
     async def test_wallet_find_transaction(self):
         client = await get_lite_balancer()
-        result = await WalletUtils.wait_for_transaction(client, "UQCMOXxD-f8LSWWbXQowKxqTr3zMY-X1wMTyWp3B-LR6syif")
+        result = await WalletUtils.wait_for_transaction(
+            client, "UQCMOXxD-f8LSWWbXQowKxqTr3zMY-X1wMTyWp3B-LR6syif"
+        )

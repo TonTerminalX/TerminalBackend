@@ -24,6 +24,24 @@ services:
       - .env
     depends_on:
       - terminal_db
+    profiles:
+      - default
+
+  django_terminal_production:
+    container_name: django_terminal_production
+    command: [ "bash", "/code/docker/start_server_production.sh" ]
+    volumes:
+      - .:/code
+    ports:
+      - "8000:8000"
+    build: .
+    restart: unless-stopped
+    profiles:
+      - production
+    env_file:
+      - .env
+    depends_on:
+      - terminal_db
 
 volumes:
   postgres_data:

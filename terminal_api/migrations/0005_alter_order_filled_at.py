@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('terminal_api', '0004_pairinfo_remove_order_base_token_and_more'),
+        ("terminal_api", "0004_pairinfo_remove_order_base_token_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='order',
-            name='filled_at',
+            model_name="order",
+            name="filled_at",
             field=models.DateTimeField(null=True),
         ),
     ]
