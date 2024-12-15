@@ -195,22 +195,15 @@ class GetTrendingPairs(APIView):
         # if cached_pairs:
         #     return Response(data=cached_pairs)
         pairs = GeckoTerminalApi.get_trending_pairs()
-        filtered_pairs = list(
-            filter(
-                lambda x: x["relationships"]["quote_token"]["data"]["id"]
-                == WalletUtils.TON_TOKEN_ADDRESS,
-                pairs,
-            )
-        )
+
+        def filter_pair(pair: dict):
+            return (pair["relationships"]["quote_token"]["data"]["id"] == WalletUtils.TON_TOKEN_ADDRESS and
+                    pair["relationships"]["dex"]["data"]["id"] == "dedust")
+
+        filtered_pairs = list(filter(filter_pair, pairs))
         with ThreadPoolExecutor(max_workers=10) as executor:
             pair_addresses = list(
                 map(lambda pair: pair["attributes"]["address"], filtered_pairs)
-            )
-            pair_addresses = list(
-                filter(
-                    lambda pair: pair["relationships"]["dex"]["data"]["id"] == "dedust",
-                    pair_addresses,
-                )
             )
             dexscreener_pairs = list(
                 executor.map(DexScreenerApi.get_pair, pair_addresses)

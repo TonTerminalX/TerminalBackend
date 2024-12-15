@@ -36,10 +36,6 @@ def from_nano(amount: float | int):
     return amount / 10**9
 
 
-client = asyncio.run(get_lite_balancer())
-asyncio.run(client.start_up())
-
-
 class CustomWallet(WalletV4R2):
 
     @classmethod
@@ -140,8 +136,6 @@ class CustomWallet(WalletV4R2):
 
 
 class WalletUtils(DedustSwapModule):
-    JETTON_TRANSFER_SELECTOR = 260734629
-    TON_TOKEN_ADDRESS = "ton_EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"
     DEFAULT_GAS = 0.25
 
     # client = asyncio.run(get_lite_balancer())
@@ -175,6 +169,7 @@ class WalletUtils(DedustSwapModule):
 
     @classmethod
     async def generate_wallet(cls):
+        client = LiteBalancer.from_mainnet_config()
         mnemonic, new_wallet = await CustomWallet.create(client)
         private_key = mnemonic_to_private_key(mnemonic)[1]
 
