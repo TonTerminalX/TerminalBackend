@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 
 from asgiref.sync import async_to_sync
+from django.core.cache import cache
 from rest_framework import status
 from rest_framework.generics import ListCreateAPIView
 from rest_framework.pagination import PageNumberPagination
@@ -193,34 +194,41 @@ class GetPairsChart(APIView):
 
 class GetTrendingPairs(APIView):
     def get(self, request):
-        # cached_pairs = cache.get("filtered_pairs")
-        # if cached_pairs:
-        #     return Response(data=cached_pairs)
-        pairs = GeckoTerminalApi.get_trending_pairs()
+        cached_pairs = cache.get("trending_pairs")
+        if cached_pairs:
+            return Response(data=cached_pairs)
+        pair_addresses = GeckoTerminalApi.default_pairs
 
-        def filter_pair(pair: dict):
-            return (pair["relationships"]["quote_token"]["data"]["id"] == WalletUtils.TON_TOKEN_ADDRESS and
-                    pair["relationships"]["dex"]["data"]["id"] == "dedust")
+        # def filter_pair(pair: dict):
+        #     return (pair["relationships"]["quote_token"]["data"]["id"] == WalletUtils.TON_TOKEN_ADDRESS and
+        #             pair["relationships"]["dex"]["data"]["id"] == "dedust")
 
-        filtered_pairs = list(filter(filter_pair, pairs))
+        # filtered_pairs = list(filter(filter_pair, pairs))
         with ThreadPoolExecutor(max_workers=10) as executor:
-            pair_addresses = list(
-                map(lambda pair: pair["attributes"]["address"], filtered_pairs)
-            )
-            dexscreener_pairs = list(
-                executor.map(DexScreenerApi.get_pair, pair_addresses)
-            )
-            # dexscreener_pairs = list(filter(lambda x: x, dexscreener_pairs))
+            pairs = list(executor.map(GeckoTerminalApi.get_pair, pair_addresses))
+        #
+        # with ThreadPoolExecutor(max_workers=10) as executor:
+        #     pair_addresses = list(
+        #         map(lambda pair: pair["attributes"]["address"], filtered_pairs)
+        #     )
+        #     dexscreener_pairs = list(
+        #         executor.map(DexScreenerApi.get_pair, pair_addresses)
+        #     )
+        #     # dexscreener_pairs = list(filter(lambda x: x, dexscreener_pairs))
 
-        for dex_pair, gecko_pair in zip(dexscreener_pairs, filtered_pairs):
-            if dex_pair:
-                gecko_pair["info"] = dex_pair.get("info")
-            else:
-                gecko_pair["info"] = {}
+        # for dex_pair, gecko_pair in zip(dexscreener_pairs, filtered_pairs):
+        #     if dex_pair:
+        #         gecko_pair["info"] = dex_pair.get("info")
+        #     else:
+        #         gecko_pair["info"] = {}
 
         # serialized = PairSerializer(pairs, many=True)
-        # cache.set("filtered_pairs", filtered_pairs, 60)
-        return Response(filtered_pairs)
+
+        for pair in pairs:
+            pair["attributes"]["symbol"] = pair["attributes"]["name"].split(" ")[0]
+
+        cache.set("trending_pairs", pairs, 120)
+        return Response(pairs)
 
 
 class GetAddressInformation(APIView):

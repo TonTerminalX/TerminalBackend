@@ -1,4 +1,6 @@
 import datetime
+import json
+from pathlib import Path
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -29,6 +31,10 @@ class GeckoTerminalApi:
     api_url = "https://api.geckoterminal.com/api/v2"
     get_ohlcv_data_endpoint = "/networks/{network}/pools/{pool}/ohlcv/day"
     get_trending_pairs_endpoint = "/networks/{network}/trending_pools?include=base_token%2Cquote_token%2Cdex&page=1"
+    get_pair_endpoint = "/networks/{network}/pools/{pool}"
+
+    default_pairs_path = Path(__file__).parent.parent.parent / "default_pairs.json"
+    default_pairs = json.load(open(default_pairs_path, "r", encoding="utf-8"))
 
     headers = {"Accept": "application/json;version=20230302"}
 
@@ -49,6 +55,13 @@ class GeckoTerminalApi:
         response = requests.get(endpoint, headers=cls.headers, timeout=(10, 10))
         response.raise_for_status()
         return merge_pairs_info(response.json())
+
+    @classmethod
+    def get_pair(cls, pool: str):
+        endpoint = f"{cls.api_url}{cls.get_pair_endpoint.format(network='ton', pool=pool)}"
+        response = requests.get(endpoint, headers=cls.headers, timeout=(10, 10))
+        response.raise_for_status()
+        return response.json()["data"]
 
 
 if __name__ == "__main__":

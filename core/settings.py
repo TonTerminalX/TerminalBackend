@@ -112,9 +112,9 @@ DATABASES = {
 }
 
 CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": f'redis://{get_env_key("REDIS_HOST")}:{get_env_key("REDIS_PORT")}/1',
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-cache-name',  # Уникальное имя для хранения данных
     }
 }
 
