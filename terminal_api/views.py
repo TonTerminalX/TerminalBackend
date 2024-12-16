@@ -225,6 +225,8 @@ class GetTrendingPairs(APIView):
             pair["attributes"]["symbol"] = pair["attributes"]["name"].split(" ")[0]
             if pair.get("info"):
                 pair["attributes"]["image_url"] = pair["info"].get("imageUrl", "missing.png")
+            else:
+                pair["attributes"]["image_url"] = "missing.png"
 
         cache.set("trending_pairs", pairs, 120)
         return Response(pairs)
