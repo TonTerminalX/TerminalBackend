@@ -44,8 +44,6 @@ services:
       - production_only
     env_file:
       - .env
-    depends_on:
-      - terminal_db
 
 volumes:
   postgres_data:
