@@ -55,7 +55,8 @@ CORS_ALLOW_METHODS = [
     "PUT",
 ]
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5174",  # Add your frontend origin
+    "http://localhost:5174",
+    "https://terminal-frontend-kappa.vercel.app",
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
