@@ -80,6 +80,8 @@ class RegisterUserView(APIView):
         response.set_cookie(
             key="access_token",
             value=str(refresh.access_token),
+            samesite="None",
+            secure=True,
             # httponly=True,
             # secure=True,
         )
@@ -129,6 +131,8 @@ class LoginUserView(APIView):
         response.set_cookie(
             key="access_token",
             value=str(refresh.access_token),
+            samesite="None",
+            secure=True,
             # httponly=True,
             # secure=True,
         )
