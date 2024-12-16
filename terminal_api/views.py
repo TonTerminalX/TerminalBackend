@@ -82,8 +82,7 @@ class RegisterUserView(APIView):
             value=str(refresh.access_token),
             samesite="None",
             secure=True,
-            # httponly=True,
-            # secure=True,
+            httponly=False,
         )
 
         return response
@@ -133,8 +132,7 @@ class LoginUserView(APIView):
             value=str(refresh.access_token),
             samesite="None",
             secure=True,
-            # httponly=True,
-            # secure=True,
+            httponly=False,
         )
         return response
 
